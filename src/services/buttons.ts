@@ -64,8 +64,19 @@ export async function dynamicMainMenu(showAdmin: boolean) {
   const visible = buttons
     .filter((b) => b.is_visible && (b.key !== "menu.admin" || showAdmin))
     .sort((a, b) => a.sort_order - b.sort_order);
-  const rows: Array<Array<{ text: string; callback_data: string; style?: BtnStyle }>> = [];
-  let current: Array<{ text: string; callback_data: string; style?: BtnStyle }> = [];
+  const rows: Array<Array<{
+  text: string;
+  callback_data: string;
+  style?: BtnStyle;
+  icon_custom_emoji_id?: string;
+}>> = [];
+
+let current: Array<{
+  text: string;
+  callback_data: string;
+  style?: BtnStyle;
+  icon_custom_emoji_id?: string;
+}> = [];
   for (const b of visible) {
     const cb = CALLBACKS[b.key];
     if (!cb) continue;
