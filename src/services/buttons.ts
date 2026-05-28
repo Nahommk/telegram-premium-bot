@@ -17,10 +17,12 @@ const TTL = 30_000;
 
 export async function loadButtons(force = false): Promise<ButtonTpl[]> {
   if (!force && _cache && Date.now() - _ts < TTL) return _cache;
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("button_templates")
     .select("key,label,emoji,icon_custom_emoji_id,is_visible,sort_order")
     .order("sort_order");
+console.log("BUTTONS DEBUG DATA:", data);
+console.log("BUTTONS DEBUG ERROR:", error);
   _cache = (data as ButtonTpl[]) ?? [];
   _ts = Date.now();
   return _cache;
