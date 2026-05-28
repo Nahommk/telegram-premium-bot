@@ -49,7 +49,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       try { await attachReferrer(ctx.from.id, refId); } catch (e) { console.error("[attachReferrer]", e); }
     }
     const kb = await dynamicMainMenu(ctx.isAdmin);
-    await tReply(ctx, "welcome", "Welcome {first_name}!", {
+    await tReply(ctx, "welcome", "🔥 NEW SERVER TEST {first_name}!", {
       first_name: ctx.from?.first_name ?? "",
       username: ctx.from?.username ?? "",
       telegram_id: ctx.from?.id ?? "",
