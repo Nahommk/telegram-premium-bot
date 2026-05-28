@@ -71,6 +71,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
 
   bot.command(["help", "guide"], async (ctx) => {
     const kb = await dynamicMainMenu(ctx.isAdmin);
+    console.log("MENU DEBUG:", JSON.stringify(kb, null, 2));
     await tReply(ctx, "guide", guideText, {}, { reply_markup: kb });
   });
 
