@@ -377,12 +377,13 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     if (!b) return;
     const kb = new InlineKeyboard()
       .text(await getMessageTemplate("admin_btn_edit_label", "✏️ Label"), `adm:btn:label:${key}`)
-      .text(await getMessageTemplate("admin_btn_edit_emoji", "🎨 Emoji"), `adm:btn:emoji:${key}`).row()
-      .text(b.is_visible ? await getMessageTemplate("admin_btn_hide", "🚫 Hide") : await getMessageTemplate("admin_btn_show", "✅ Show"), `adm:btn:toggle:${key}`).row()
+.text(await getMessageTemplate("admin_btn_edit_emoji", "🎨 Emoji"), `adm:btn:emoji:${key}`).row()
+.text("💎 Premium Icon ID", `adm:btn:premium:${key}`).row()
+.text(b.is_visible ? await getMessageTemplate("admin_btn_hide", "🚫 Hide") : await getMessageTemplate("admin_btn_show", "✅ Show"), `adm:btn:toggle:${key}`).row()
       .text("⬆️", `adm:btn:move:${key}:up`).text("⬇️", `adm:btn:move:${key}:down`).row()
       .text(await getMessageTemplate("admin_btn_buttons_back", "⬅️ Buttons"), "adm:btn:list");
     await tAEdit(ctx, "button_view",
-      "*{key}*\nLabel: {label}\nEmoji: {emoji}\nVisible: {visible}\nOrder: {sort}",
+      "*{key}*\nLabel: {label}\nEmoji: {emoji}\nPremium Icon ID: {premium}\nVisible: {visible}\nOrder: {sort}",
       { key, label: b.label, emoji: b.emoji || "—", visible: b.is_visible, sort: b.sort_order },
       { reply_markup: kb });
   });
@@ -665,7 +666,20 @@ export function registerAdmin(bot: Bot<BotCtx>) {
       case "edit_button": {
         if (!text) return next();
         const field = state.field as string; const key = state.key as string;
-        const update: any = field === "label" ? { label: text } : { emoji: text.slice(0, 4) };
+        let update: any;
+
+if (field === "label") {
+  update = { label: text };
+} else {
+  const customEmoji = ctx.message?.entities?.find(
+    (e: any) => e.type === "custom_emoji"
+  ) as any;
+
+  update = {
+    emoji: text.slice(0, 4),
+    icon_custom_emoji_id: customEmoji?.custom_emoji_id || null,
+  };
+}
         await supabaseAdmin.from("button_templates").update(update).eq("key", key);
         invalidateButtonsCache();
         await audit(ctx.from!.id, "button.edit", { key, field });
