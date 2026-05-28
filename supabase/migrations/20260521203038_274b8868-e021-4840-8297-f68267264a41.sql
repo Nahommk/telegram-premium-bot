@@ -1,0 +1,1 @@
+DELETE FROM public.message_templates WHERE key IN ('payment_instruction_telebirr','payment_instruction_cbe');
