@@ -83,7 +83,7 @@ let current: Array<{
     const cb = CALLBACKS[b.key];
     if (!cb) continue;
     current.push({
-  text: btnText(b),
+  text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
   callback_data: cb,
   style: STYLES[b.key],
   ...(b.icon_custom_emoji_id
