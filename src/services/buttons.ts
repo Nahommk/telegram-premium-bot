@@ -8,6 +8,7 @@ export interface ButtonTpl {
   emoji: string;
   is_visible: boolean;
   sort_order: number;
+  icon_custom_emoji_id?: string;
 }
 
 let _cache: ButtonTpl[] | null = null;
@@ -18,7 +19,7 @@ export async function loadButtons(force = false): Promise<ButtonTpl[]> {
   if (!force && _cache && Date.now() - _ts < TTL) return _cache;
   const { data } = await supabaseAdmin
     .from("button_templates")
-    .select("key,label,emoji,is_visible,sort_order")
+    .select("key,label,emoji,icon_custom_emoji_id,is_visible,sort_order")
     .order("sort_order");
   _cache = (data as ButtonTpl[]) ?? [];
   _ts = Date.now();
@@ -68,7 +69,14 @@ export async function dynamicMainMenu(showAdmin: boolean) {
   for (const b of visible) {
     const cb = CALLBACKS[b.key];
     if (!cb) continue;
-    current.push({ text: btnText(b), callback_data: cb, style: STYLES[b.key] });
+    current.push({
+  text: btnText(b),
+  callback_data: cb,
+  style: STYLES[b.key],
+  ...(b.icon_custom_emoji_id
+    ? { icon_custom_emoji_id: b.icon_custom_emoji_id }
+    : {}),
+} as any);
     if (current.length === 2) { rows.push(current); current = []; }
   }
   if (current.length) rows.push(current);
