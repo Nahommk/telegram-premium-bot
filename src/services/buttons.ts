@@ -86,6 +86,9 @@ let current: Array<{
   text: btnText(b),
   callback_data: cb,
   style: STYLES[b.key],
+  ...(b.icon_custom_emoji_id
+    ? { icon_custom_emoji_id: b.icon_custom_emoji_id }
+    : {}),
 } as any);
     if (current.length === 2) { rows.push(current); current = []; }
   }
