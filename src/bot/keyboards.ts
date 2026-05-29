@@ -1,6 +1,20 @@
+import { loadButtons } from "@/services/buttons";
 import { InlineKeyboard } from "grammy";
 export { dynamicMainMenu } from "@/services/buttons";
+async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji = "") {
+  const buttons = await loadButtons(true);
+  const b = buttons.find((x) => x.key === key);
 
+  const label = b?.label ?? fallbackLabel;
+  const emoji = b?.emoji ?? fallbackEmoji;
+
+  return {
+    text: b?.icon_custom_emoji_id ? label : `${emoji} ${label}`.trim(),
+    ...(b?.icon_custom_emoji_id
+      ? { icon_custom_emoji_id: b.icon_custom_emoji_id }
+      : {}),
+  };
+}
 // Kept as a synchronous fallback used by the generic "menu" callback in bot.ts.
 // Real menu rendering should go through dynamicMainMenu().
 export function mainMenuKeyboard(showAdmin: boolean): InlineKeyboard {
@@ -49,23 +63,46 @@ export function quantityKeyboard(productId: string, presets: number[]): InlineKe
   return kb;
 }
 
-export function paymentMethodKeyboard(orderId: string, walletBalanceCents = 0, orderTotalCents = 0): InlineKeyboard {
-  const kb = new InlineKeyboard()
-    .text("📱 Telebirr", `pay:method:${orderId}:telebirr`)
-    .text("🏦 CBE", `pay:method:${orderId}:cbe`).row();
+export async function paymentMethodKeyboard(orderId: string, walletBalanceCents = 0, orderTotalCents = 0) {
+  const telebirr = await btnTpl("btn_telebirr", "Telebirr", "📱");
+  const cbe = await btnTpl("btn_cbe", "CBE", "🏦");
+  const cancel = await btnTpl("btn_cancel", "Cancel", "❌");
+  const wallet = await btnTpl("btn_wallet", "Pay from Wallet", "💼");
+
+  const rows: any[] = [
+    [
+      { ...telebirr, callback_data: `pay:method:${orderId}:telebirr` },
+      { ...cbe, callback_data: `pay:method:${orderId}:cbe` },
+    ],
+  ];
+
   if (walletBalanceCents >= orderTotalCents && orderTotalCents > 0) {
-    kb.text(`💼 Pay from Wallet (${(walletBalanceCents / 100).toFixed(2)} ETB)`, `pay:wallet:${orderId}`).row();
+    rows.push([
+      {
+        ...wallet,
+        text: `${wallet.text} (${(walletBalanceCents / 100).toFixed(2)} ETB)`,
+        callback_data: `pay:wallet:${orderId}`,
+      },
+    ]);
   }
-  kb.text("❌ Cancel", `order:cancel:${orderId}`);
-  return kb;
-}
 
-export function awaitingReferenceKeyboard(orderId: string): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("📋 Instructions again", `pay:show:${orderId}`).row()
-    .text("❌ Cancel order", `order:cancel:${orderId}`);
-}
+  rows.push([
+    { ...cancel, callback_data: `order:cancel:${orderId}` },
+  ]);
 
+  return { inline_keyboard: rows };
+}
+export async function awaitingReferenceKeyboard(orderId: string) {
+  const instructions = await btnTpl("btn_instructions", "Instructions again", "📋");
+  const cancel = await btnTpl("btn_cancel", "Cancel order", "❌");
+
+  return {
+    inline_keyboard: [
+      [{ ...instructions, callback_data: `pay:show:${orderId}` }],
+      [{ ...cancel, callback_data: `order:cancel:${orderId}` }],
+    ],
+  };
+}
 export function walletHomeKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("➕ Deposit", "wallet:deposit").text("📜 History", "wallet:history").row()

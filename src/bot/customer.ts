@@ -704,7 +704,7 @@ async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: numb
   await tReply(ctx, "order_created",
     "🧾 *Order {short_id}*\n\n{name} × {qty} = *{total} ETB*\n\nChoose payment method:",
     { short_id: order.short_id, name: p.name, qty, total: formatPrice(total) },
-    { reply_markup: paymentMethodKeyboard(order.id, balance, total) });
+    { reply_markup: await paymentMethodKeyboard(order.id, balance, total) });
 }
 
 function methodLabel(m: "telebirr" | "cbe") {
