@@ -1,11 +1,17 @@
-import { Bot, type Context } from "grammy";
+wait ctx.answerCallbackQuery();
+  const kb = await dynamicMainMenu(ctx.isAdmin);
+  await ctx.editMessageText(
+    await getMessageTemplate("main_menu", "🏠 Main menu — pick an option:"),
+    { reply_markup: kb }
+  );
+});import { Bot, type Context } from "grammy";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { registerCustomer } from "./customer";
 import { registerAdmin } from "./admin";
 import { isAdmin } from "./util";
 import { dynamicMainMenu } from "@/services/buttons";
 import { getMessageTemplate } from "@/services/templates";
-
+import { tEdit } from "./messaging";
 export interface BotCtx extends Context {
   isAdmin: boolean;
 }
@@ -43,11 +49,15 @@ export function getBot(): Bot<BotCtx> {
     await next();
   });
 
-  // Main menu callback
   bot.callbackQuery("menu", async (ctx) => {
-    await ctx.answerCallbackQuery();
-    const kb = await dynamicMainMenu(ctx.isAdmin);
-    await ctx.editMessageText(await getMessageTemplate("main_menu", "🏠 Main menu — pick an option:"), { reply_markup: kb });
+  bot.callbackQuery("menu", async (ctx) => {
+    await tEdit(
+  ctx,
+  "main_menu",
+  "🏠 Main menu — pick an option:",
+  {},
+  { reply_markup: kb }
+);
   });
 
   registerCustomer(bot);
