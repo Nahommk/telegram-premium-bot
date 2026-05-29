@@ -50,15 +50,16 @@ export function getBot(): Bot<BotCtx> {
   });
 
   bot.callbackQuery("menu", async (ctx) => {
-  bot.callbackQuery("menu", async (ctx) => {
-    await tEdit(
-  ctx,
-  "main_menu",
-  "🏠 Main menu — pick an option:",
-  {},
-  { reply_markup: kb }
-);
-  });
+  await ctx.answerCallbackQuery();
+  const kb = await dynamicMainMenu(ctx.isAdmin);
+  await tEdit(
+    ctx,
+    "main_menu",
+    "🏠 Main menu — pick an option:",
+    {},
+    { reply_markup: kb }
+  );
+});
 
   registerCustomer(bot);
   registerAdmin(bot);
