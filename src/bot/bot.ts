@@ -1,10 +1,4 @@
-wait ctx.answerCallbackQuery();
-  const kb = await dynamicMainMenu(ctx.isAdmin);
-  await ctx.editMessageText(
-    await getMessageTemplate("main_menu", "🏠 Main menu — pick an option:"),
-    { reply_markup: kb }
-  );
-});import { Bot, type Context } from "grammy";
+import { Bot, type Context } from "grammy";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { registerCustomer } from "./customer";
 import { registerAdmin } from "./admin";
