@@ -89,7 +89,7 @@ export async function paymentMethodKeyboard(orderId: string, walletBalanceCents 
   rows.push([
     { ...cancel, callback_data: `order:cancel:${orderId}` },
   ]);
-
+console.log("PAYMENT KB DEBUG:", JSON.stringify(rows, null, 2));
   return { inline_keyboard: rows };
 }
 export async function awaitingReferenceKeyboard(orderId: string) {
