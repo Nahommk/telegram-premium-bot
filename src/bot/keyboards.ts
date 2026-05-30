@@ -103,11 +103,6 @@ export async function awaitingReferenceKeyboard(orderId: string) {
     ],
   };
 }
-  return new InlineKeyboard()
-    .text("➕ Deposit", "wallet:deposit")
-    .text("📜 History", "wallet:history").row()
-    .text("⬅️ Main menu", "menu");
-}
 
 export async function walletHomeKeyboard() {
   const deposit = await btnTpl("btn_deposit", "Deposit", "➕");
