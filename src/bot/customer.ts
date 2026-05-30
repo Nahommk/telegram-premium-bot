@@ -5,7 +5,7 @@ import type { BotCtx } from "./bot";
 import {
   backToMenuKeyboard, productListKeyboard, quantityKeyboard,
   paymentMethodKeyboard, awaitingReferenceKeyboard, walletHomeKeyboard,
-  depositAmountKeyboard, referralKeyboard,
+  depositAmountKeyboard, referralKeyboard, btnTpl,
 } from "./keyboards";
 import { dynamicMainMenu } from "@/services/buttons";
 import { formatPrice, sha256Hex } from "./util";
@@ -653,21 +653,32 @@ async function handleWalletDepositVerification(
 }
 
 async function askDepositMethod(ctx: BotCtx, amount: number) {
-  const tbLabel = await getMessageTemplate("btn_telebirr", "📱 Telebirr");
-  const cbeLabel = await getMessageTemplate("btn_cbe", "🏦 CBE");
-  const backLabel = await getMessageTemplate("btn_back", "⬅️ Back");
-  const kb = new InlineKeyboard()
-    .text(tbLabel, `wallet:depMethod:${amount}:telebirr`)
-    .text(cbeLabel, `wallet:depMethod:${amount}:cbe`).row()
-    .text(backLabel, "wallet:deposit");
+  const telebirr = await btnTpl("btn_telebirr", "Telebirr", "📱");
+  const cbe = await btnTpl("btn_cbe", "CBE", "🏦");
+  const back = await btnTpl("btn_back", "Back", "⬅️");
+
+  const kb = {
+    inline_keyboard: [
+      [
+        { ...telebirr, callback_data: `wallet:depMethod:${amount}:telebirr` },
+        { ...cbe, callback_data: `wallet:depMethod:${amount}:cbe` },
+      ],
+      [
+        { ...back, callback_data: "wallet:deposit" },
+      ],
+    ],
+  };
+
   const body = await renderMessage("wallet_deposit_method_prompt",
     "Deposit *{amount} ETB* — pick payment method:", { amount });
+
   try {
     await ctx.editMessageText(body, { parse_mode: "Markdown", reply_markup: kb });
   } catch {
     await ctx.reply(body, { parse_mode: "Markdown", reply_markup: kb });
   }
 }
+
 
 async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: number) {
   const { data: p } = await supabaseAdmin

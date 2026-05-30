@@ -1,7 +1,7 @@
 import { loadButtons } from "@/services/buttons";
 import { InlineKeyboard } from "grammy";
 export { dynamicMainMenu } from "@/services/buttons";
-async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji = "") {
+export async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji = "") {
   const buttons = await loadButtons(true);
   const b = buttons.find((x) => x.key === key);
 
