@@ -290,14 +290,14 @@ export function registerCustomer(bot: Bot<BotCtx>) {
     const bal = await getBalance(ctx.from!.id);
     await tEdit(ctx, "wallet_home",
       "💼 *Wallet*\n\nBalance: *{balance} ETB*\n\nUse your balance to pay any pending order instantly.",
-      { balance: formatPrice(bal) }, { reply_markup: walletHomeKeyboard() });
+      { balance: formatPrice(bal) }, { reply_markup: await walletHomeKeyboard() });
   });
 
   bot.callbackQuery("wallet:history", async (ctx) => {
     await ctx.answerCallbackQuery();
     const txs = await listTransactions(ctx.from!.id, 15);
     if (txs.length === 0) {
-      await tEdit(ctx, "wallet_history_empty", "No wallet activity yet.", {}, { reply_markup: walletHomeKeyboard() });
+      await tEdit(ctx, "wallet_history_empty", "No wallet activity yet.", {}, { reply_markup: await walletHomeKeyboard() });
       return;
     }
     const lineTpl = await getMessageTemplate("wallet_history_line", "`{date}` {sign}{amount} ({kind})");
@@ -308,7 +308,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       kind: t.kind,
     }));
     await tEdit(ctx, "wallet_history_header", "📜 *Wallet history*\n\n{list}", { list: lines.join("\n") },
-      { reply_markup: walletHomeKeyboard() });
+      { reply_markup: await walletHomeKeyboard() });
   });
 
   bot.callbackQuery("wallet:deposit", async (ctx) => {
@@ -645,7 +645,7 @@ async function handleWalletDepositVerification(
     await tReply(ctx, "wallet_deposit_success",
       "✅ Deposited *{amount} ETB*. New balance: *{balance} ETB*.",
       { reference, amount: formatPrice(v.amount_cents), balance: formatPrice(newBal) },
-      { reply_markup: walletHomeKeyboard() });
+      { reply_markup: await walletHomeKeyboard() });
   } catch (e: any) {
     await tReply(ctx, "wallet_deposit_error_failed", "❌ Failed: {reason}",
       { reason: e?.message ?? e });

@@ -103,10 +103,28 @@ export async function awaitingReferenceKeyboard(orderId: string) {
     ],
   };
 }
-export function walletHomeKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("➕ Deposit", "wallet:deposit").text("📜 History", "wallet:history").row()
+    .text("➕ Deposit", "wallet:deposit")
+    .text("📜 History", "wallet:history").row()
     .text("⬅️ Main menu", "menu");
+}
+
+export async function walletHomeKeyboard() {
+  const deposit = await btnTpl("btn_deposit", "Deposit", "➕");
+  const history = await btnTpl("btn_history", "History", "📜");
+  const menu = await btnTpl("btn_back", "Main menu", "⬅️");
+
+  return {
+    inline_keyboard: [
+      [
+        { ...deposit, callback_data: "wallet:deposit" },
+        { ...history, callback_data: "wallet:history" },
+      ],
+      [
+        { ...menu, callback_data: "menu" },
+      ],
+    ],
+  };
 }
 
 export function depositAmountKeyboard(): InlineKeyboard {
