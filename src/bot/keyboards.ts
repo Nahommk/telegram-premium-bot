@@ -9,7 +9,7 @@ export async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji =
   const emoji = b?.emoji ?? fallbackEmoji;
 
   return {
-    text: b?.icon_custom_emoji_id ? label : `${emoji} ${label}`.trim(),
+    text: b?.icon_custom_emoji_id ? `${emoji} ${label}`.trim() : `${emoji} ${label}`.trim(),
     ...(b?.icon_custom_emoji_id
       ? { icon_custom_emoji_id: b.icon_custom_emoji_id }
       : {}),
