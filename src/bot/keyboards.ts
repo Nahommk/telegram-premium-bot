@@ -1,6 +1,9 @@
 import { loadButtons } from "@/services/buttons";
 import { InlineKeyboard } from "grammy";
+import { stripEmojiTags } from "@/bot/messaging";
+
 export { dynamicMainMenu } from "@/services/buttons";
+
 export async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji = "") {
   const buttons = await loadButtons(true);
   const b = buttons.find((x) => x.key === key);
@@ -9,12 +12,15 @@ export async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji =
   const emoji = b?.emoji ?? fallbackEmoji;
 
   return {
-    text: b?.icon_custom_emoji_id ? `${emoji} ${label}`.trim() : `${emoji} ${label}`.trim(),
+    text: b?.icon_custom_emoji_id 
+      ? `${stripEmojiTags(emoji)} ${stripEmojiTags(label)}`.trim() 
+      : `${stripEmojiTags(emoji)} ${stripEmojiTags(label)}`.trim(),
     ...(b?.icon_custom_emoji_id
       ? { icon_custom_emoji_id: b.icon_custom_emoji_id }
       : {}),
   };
 }
+
 // Kept as a synchronous fallback used by the generic "menu" callback in bot.ts.
 // Real menu rendering should go through dynamicMainMenu().
 export function mainMenuKeyboard(showAdmin: boolean): InlineKeyboard {
@@ -58,14 +64,17 @@ export async function quantityKeyboard(productId: string, presets: number[]): In
     kb.text(`x${q}`, `shop:q:${productId}:${q}`);
     if ((i + 1) % 4 === 0) kb.row();
   });
+  const customQtyBtn = await btnTpl("btn_custom_qty", "Custom qty", "✏️");
+  const backBtn = await btnTpl("btn_back", "Back", "⬅️");
+  
   return {
   inline_keyboard: [
     ...((kb as any).inline_keyboard ?? []),
     [
-      { ...(await btnTpl("btn_custom_qty", "Custom qty", "✏️")), callback_data: `shop:qcustom:${productId}` },
+      { ...customQtyBtn, callback_data: `shop:qcustom:${productId}` },
     ],
     [
-      { ...(await btnTpl("btn_back", "Back", "⬅️")), callback_data: "shop:list:0" },
+      { ...backBtn, callback_data: "shop:list:0" },
     ],
   ],
 };
@@ -100,6 +109,7 @@ export async function paymentMethodKeyboard(orderId: string, walletBalanceCents 
 console.log("PAYMENT KB DEBUG:", JSON.stringify(rows, null, 2));
   return { inline_keyboard: rows };
 }
+
 export async function awaitingReferenceKeyboard(orderId: string) {
   const instructions = await btnTpl("btn_instructions", "Instructions again", "📋");
   const cancel = await btnTpl("btn_cancel", "Cancel order", "❌");
