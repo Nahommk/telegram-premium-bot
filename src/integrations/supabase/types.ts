@@ -236,30 +236,39 @@ export type Database = {
         Relationships: []
       }
       button_templates: {
-        Row: {
-          emoji: string
-          is_visible: boolean
-          key: string
-          label: string
-          sort_order: number
-          updated_at: string
-        }
+  Row: {
+    created_at: string | null
+    emoji: string | null
+    icon_custom_emoji_id: string | null
+    id: string
+    is_visible: boolean | null
+    key: string
+    label: string
+    sort_order: number | null
+    updated_at: string | null
+  }
         Insert: {
-          emoji?: string
-          is_visible?: boolean
-          key: string
-          label: string
-          sort_order?: number
-          updated_at?: string
-        }
+  created_at?: string | null
+  emoji?: string | null
+  icon_custom_emoji_id?: string | null
+  id?: string
+  is_visible?: boolean | null
+  key: string
+  label: string
+  sort_order?: number | null
+  updated_at?: string | null
+}
         Update: {
-          emoji?: string
-          is_visible?: boolean
-          key?: string
-          label?: string
-          sort_order?: number
-          updated_at?: string
-        }
+  created_at?: string | null
+  emoji?: string | null
+  icon_custom_emoji_id?: string | null
+  id?: string
+  is_visible?: boolean | null
+  key?: string
+  label?: string
+  sort_order?: number | null
+  updated_at?: string | null
+}
         Relationships: []
       }
       message_templates: {

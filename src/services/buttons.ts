@@ -1,5 +1,4 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { InlineKeyboard } from "grammy";
 import { stripEmojiTags } from "@/bot/messaging";
 
 export interface ButtonTpl {
@@ -8,22 +7,64 @@ export interface ButtonTpl {
   emoji: string;
   is_visible: boolean;
   sort_order: number;
-  icon_custom_emoji_id?: string;
+  icon_custom_emoji_id?: string | null;
 }
 
 let _cache: ButtonTpl[] | null = null;
 let _ts = 0;
 const TTL = 30_000;
 
+const DEFAULT_BUTTONS: ButtonTpl[] = [
+  { key: "menu.shop", label: "Shop", emoji: "🛒", is_visible: true, sort_order: 10 },
+  { key: "menu.orders", label: "My Orders", emoji: "📦", is_visible: true, sort_order: 20 },
+  { key: "menu.pending", label: "Pending Payments", emoji: "⏳", is_visible: true, sort_order: 30 },
+  { key: "menu.wallet", label: "Wallet", emoji: "💼", is_visible: true, sort_order: 40 },
+  { key: "menu.referrals", label: "Referrals", emoji: "🎁", is_visible: true, sort_order: 50 },
+  { key: "menu.profile", label: "My Profile", emoji: "👤", is_visible: true, sort_order: 60 },
+  { key: "menu.support", label: "Support", emoji: "💬", is_visible: true, sort_order: 70 },
+  { key: "menu.admin", label: "Admin Panel", emoji: "🛠️", is_visible: true, sort_order: 100 },
+
+  { key: "btn_back", label: "Back", emoji: "⬅️", is_visible: true, sort_order: 1000 },
+  { key: "btn_main_menu", label: "Main menu", emoji: "⬅️", is_visible: true, sort_order: 1010 },
+  { key: "btn_custom_qty", label: "Custom qty", emoji: "✏️", is_visible: true, sort_order: 1020 },
+  { key: "btn_custom_amount", label: "Custom", emoji: "✏️", is_visible: true, sort_order: 1030 },
+  { key: "btn_wallet_home", label: "Wallet", emoji: "⬅️", is_visible: true, sort_order: 1040 },
+  { key: "btn_wallet", label: "Pay from Wallet", emoji: "💼", is_visible: true, sort_order: 1050 },
+  { key: "btn_deposit", label: "Deposit", emoji: "➕", is_visible: true, sort_order: 1060 },
+  { key: "btn_history", label: "History", emoji: "📜", is_visible: true, sort_order: 1070 },
+  { key: "btn_telebirr", label: "Telebirr", emoji: "📱", is_visible: true, sort_order: 1080 },
+  { key: "btn_cbe", label: "CBE", emoji: "🏦", is_visible: true, sort_order: 1090 },
+  { key: "btn_cancel", label: "Cancel", emoji: "❌", is_visible: true, sort_order: 1100 },
+  { key: "btn_instructions", label: "Instructions again", emoji: "📋", is_visible: true, sort_order: 1110 },
+];
+
+async function ensureDefaultButtons() {
+  const rows = DEFAULT_BUTTONS.map(({ key, label, emoji, is_visible, sort_order }) => ({
+    key,
+    label,
+    emoji,
+    is_visible,
+    sort_order,
+  }));
+
+  await supabaseAdmin
+    .from("button_templates")
+    .upsert(rows as any, { onConflict: "key", ignoreDuplicates: true } as any);
+}
+
 export async function loadButtons(force = false): Promise<ButtonTpl[]> {
   if (!force && _cache && Date.now() - _ts < TTL) return _cache;
+
+  await ensureDefaultButtons();
+
   const { data, error } = await supabaseAdmin
     .from("button_templates")
     .select("key,label,emoji,icon_custom_emoji_id,is_visible,sort_order")
     .order("sort_order");
-console.log("BUTTONS DEBUG DATA:", data);
-console.log("BUTTONS DEBUG ERROR:", error);
-  _cache = (data as ButtonTpl[]) ?? [];
+
+  if (error) throw error;
+
+  _cache = ((data ?? []) as unknown as ButtonTpl[]);
   _ts = Date.now();
   return _cache;
 }
@@ -50,9 +91,10 @@ const CALLBACKS: Record<string, string> = {
 };
 
 type BtnStyle = "primary" | "success" | "danger";
+
 const STYLES: Record<string, BtnStyle> = {
   "menu.shop": "primary",
-  "menu.wallet": "success",   // Deposit/Wallet → green
+  "menu.wallet": "success",
   "menu.profile": "primary",
   "menu.orders": "primary",
   "menu.pending": "primary",
@@ -61,38 +103,39 @@ const STYLES: Record<string, BtnStyle> = {
   "menu.admin": "danger",
 };
 
-export async function dynamicMainMenu(showAdmin: boolean) {
+type PremiumButton = {
+  text: string;
+  callback_data: string;
+  style?: BtnStyle;
+  icon_custom_emoji_id?: string;
+};
+
+export async function dynamicMainMenu(showAdmin: boolean): Promise<{ inline_keyboard: PremiumButton[][] }> {
   const buttons = await loadButtons();
   const visible = buttons
     .filter((b) => b.is_visible && (b.key !== "menu.admin" || showAdmin))
     .sort((a, b) => a.sort_order - b.sort_order);
-  const rows: Array<Array<{
-  text: string;
-  callback_data: string;
-  style?: BtnStyle;
-  icon_custom_emoji_id?: string;
-}>> = [];
 
-let current: Array<{
-  text: string;
-  callback_data: string;
-  style?: BtnStyle;
-  icon_custom_emoji_id?: string;
-}> = [];
+  const rows: PremiumButton[][] = [];
+  let current: PremiumButton[] = [];
+
   for (const b of visible) {
-    const cb = CALLBACKS[b.key];
-    if (!cb) continue;
+    const callback_data = CALLBACKS[b.key];
+    if (!callback_data) continue;
+
     current.push({
-  text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
-  callback_data: cb,
-  style: STYLES[b.key],
-  ...(b.icon_custom_emoji_id
-    ? { icon_custom_emoji_id: b.icon_custom_emoji_id }
-    : {}),
-} as any);
-    if (current.length === 2) { rows.push(current); current = []; }
+      text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
+      callback_data,
+      style: STYLES[b.key],
+      ...(b.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
+    });
+
+    if (current.length === 2) {
+      rows.push(current);
+      current = [];
+    }
   }
+
   if (current.length) rows.push(current);
   return { inline_keyboard: rows };
 }
-
