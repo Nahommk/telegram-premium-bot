@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS public.button_templates (
   key text PRIMARY KEY,
   label text NOT NULL,
   emoji text NOT NULL DEFAULT '',
+  icon_custom_emoji_id text,
   is_visible boolean NOT NULL DEFAULT true,
   sort_order integer NOT NULL DEFAULT 0,
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -393,3 +394,4 @@ BEGIN
   PERFORM public.wallet_credit(p_user, v_sum, 'referral_payout', 'Referral earnings payout', NULL, NULL);
   RETURN v_sum;
 END $$;
+
