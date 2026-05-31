@@ -65,77 +65,136 @@ export async function quantityKeyboard(productId: string, presets: number[]): In
   const customQtyBtn = await btnTpl("btn_custom_qty", "Custom qty", "✏️");
   const backBtn = await btnTpl("btn_back", "Back", "⬅️");
   
-  return {
-  inline_keyboard: [
-    ...((kb as any).inline_keyboard ?? []),
-    [
-      { ...customQtyBtn, callback_data: `shop:qcustom:${productId}` },
-    ],
-    [
-      { ...backBtn, callback_data: "shop:list:0" },
-    ],
-  ],
-};
+  // Use InlineKeyboard builder to properly handle icon_custom_emoji_id
+  kb.row();
+  if (customQtyBtn.icon_custom_emoji_id) {
+    kb.text(customQtyBtn.text, `shop:qcustom:${productId}`, { 
+      customEmojiId: customQtyBtn.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(customQtyBtn.text, `shop:qcustom:${productId}`);
+  }
+  
+  kb.row();
+  if (backBtn.icon_custom_emoji_id) {
+    kb.text(backBtn.text, `shop:list:0`, { 
+      customEmojiId: backBtn.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(backBtn.text, `shop:list:0`);
+  }
+  
+  return kb;
 }
 
 export async function paymentMethodKeyboard(orderId: string, walletBalanceCents = 0, orderTotalCents = 0) {
+  const kb = new InlineKeyboard();
+  
   const telebirr = await btnTpl("btn_telebirr", "Telebirr", "📱");
   const cbe = await btnTpl("btn_cbe", "CBE", "🏦");
-  const cancel = await btnTpl("btn_cancel", "Cancel", "❌");
-  const wallet = await btnTpl("btn_wallet", "Pay from Wallet", "💼");
-
-  const rows: any[] = [
-    [
-      { ...telebirr, callback_data: `pay:method:${orderId}:telebirr` },
-      { ...cbe, callback_data: `pay:method:${orderId}:cbe` },
-    ],
-  ];
-
+  
+  if (telebirr.icon_custom_emoji_id) {
+    kb.text(telebirr.text, `pay:method:${orderId}:telebirr`, { 
+      customEmojiId: telebirr.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(telebirr.text, `pay:method:${orderId}:telebirr`);
+  }
+  
+  if (cbe.icon_custom_emoji_id) {
+    kb.text(cbe.text, `pay:method:${orderId}:cbe`, { 
+      customEmojiId: cbe.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(cbe.text, `pay:method:${orderId}:cbe`);
+  }
+  
+  kb.row();
+  
   if (walletBalanceCents >= orderTotalCents && orderTotalCents > 0) {
-    rows.push([
-      {
-        ...wallet,
-        text: `${wallet.text} (${(walletBalanceCents / 100).toFixed(2)} ETB)`,
-        callback_data: `pay:wallet:${orderId}`,
-      },
-    ]);
+    const wallet = await btnTpl("btn_wallet", "Pay from Wallet", "💼");
+    const walletText = `${wallet.text} (${(walletBalanceCents / 100).toFixed(2)} ETB)`;
+    if (wallet.icon_custom_emoji_id) {
+      kb.text(walletText, `pay:wallet:${orderId}`, { 
+        customEmojiId: wallet.icon_custom_emoji_id 
+      });
+    } else {
+      kb.text(walletText, `pay:wallet:${orderId}`);
+    }
+    kb.row();
   }
 
-  rows.push([
-    { ...cancel, callback_data: `order:cancel:${orderId}` },
-  ]);
-console.log("PAYMENT KB DEBUG:", JSON.stringify(rows, null, 2));
-  return { inline_keyboard: rows };
+  const cancel = await btnTpl("btn_cancel", "Cancel", "❌");
+  if (cancel.icon_custom_emoji_id) {
+    kb.text(cancel.text, `order:cancel:${orderId}`, { 
+      customEmojiId: cancel.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(cancel.text, `order:cancel:${orderId}`);
+  }
+  
+  return kb;
 }
 
 export async function awaitingReferenceKeyboard(orderId: string) {
+  const kb = new InlineKeyboard();
+  
   const instructions = await btnTpl("btn_instructions", "Instructions again", "📋");
+  if (instructions.icon_custom_emoji_id) {
+    kb.text(instructions.text, `pay:show:${orderId}`, { 
+      customEmojiId: instructions.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(instructions.text, `pay:show:${orderId}`);
+  }
+  
+  kb.row();
+  
   const cancel = await btnTpl("btn_cancel", "Cancel order", "❌");
+  if (cancel.icon_custom_emoji_id) {
+    kb.text(cancel.text, `order:cancel:${orderId}`, { 
+      customEmojiId: cancel.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(cancel.text, `order:cancel:${orderId}`);
+  }
 
-  return {
-    inline_keyboard: [
-      [{ ...instructions, callback_data: `pay:show:${orderId}` }],
-      [{ ...cancel, callback_data: `order:cancel:${orderId}` }],
-    ],
-  };
+  return kb;
 }
 
 export async function walletHomeKeyboard() {
+  const kb = new InlineKeyboard();
+  
   const deposit = await btnTpl("btn_deposit", "Deposit", "➕");
+  if (deposit.icon_custom_emoji_id) {
+    kb.text(deposit.text, "wallet:deposit", { 
+      customEmojiId: deposit.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(deposit.text, "wallet:deposit");
+  }
+  
   const history = await btnTpl("btn_history", "History", "📜");
+  if (history.icon_custom_emoji_id) {
+    kb.text(history.text, "wallet:history", { 
+      customEmojiId: history.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(history.text, "wallet:history");
+  }
+  
+  kb.row();
+  
   const menu = await btnTpl("btn_back", "Main menu", "⬅️");
+  if (menu.icon_custom_emoji_id) {
+    kb.text(menu.text, "menu", { 
+      customEmojiId: menu.icon_custom_emoji_id 
+    });
+  } else {
+    kb.text(menu.text, "menu");
+  }
 
-  return {
-    inline_keyboard: [
-      [
-        { ...deposit, callback_data: "wallet:deposit" },
-        { ...history, callback_data: "wallet:history" },
-      ],
-      [
-        { ...menu, callback_data: "menu" },
-      ],
-    ],
-  };
+  return kb;
 }
 
 export function depositAmountKeyboard(): InlineKeyboard {
