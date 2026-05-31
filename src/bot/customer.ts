@@ -87,7 +87,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       .order("created_at", { ascending: true }).range(from, to);
     await ctx.answerCallbackQuery();
     if (!products || products.length === 0) {
-      await tEdit(ctx, "shop_empty", "🛒 No products available right now.", {}, { reply_markup: backToMenuKeyboard() });
+      await tEdit(ctx, "shop_empty", "🛒 No products available right now.", {}, { reply_markup: await backToMenuKeyboard() });
       return;
     }
     // Compute in_stock per product (manual delivery is always considered in stock)
@@ -105,7 +105,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       in_stock: p.delivery_mode === "automatic" ? (stockMap.get(p.id) ?? false) : true,
     }));
     await tEdit(ctx, "shop_header", "🛒 *Shop* — pick a product:", {}, {
-      reply_markup: productListKeyboard(enriched, page, PAGE_SIZE, count ?? products.length),
+      reply_markup: await productListKeyboard(enriched, page, PAGE_SIZE, count ?? products.length),
     });
   });
 
@@ -116,7 +116,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       .eq("id", id).maybeSingle();
     await ctx.answerCallbackQuery();
     if (!p || !p.is_enabled) {
-      await tEdit(ctx, "product_unavailable", "Product not available.", {}, { reply_markup: backToMenuKeyboard() });
+      await tEdit(ctx, "product_unavailable", "Product not available.", {}, { reply_markup: await backToMenuKeyboard() });
       return;
     }
     let stock = "—";
@@ -186,12 +186,12 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       if (result.delivery_mode === "manual") {
         await tReply(ctx, "wallet_pay_manual",
           "✅ *Order {short_id} paid from wallet.*\n\nYour payment was verified. Your order is waiting for manual delivery by admin.",
-          { short_id: result.short_id }, { reply_markup: backToMenuKeyboard() });
+          { short_id: result.short_id }, { reply_markup: await backToMenuKeyboard() });
         await notifyAdminsManualDelivery(getBot(), orderId);
       } else {
         await tReply(ctx, "delivery", "Delivered. Code: {code}",
           { short_id: result.short_id, code: result.delivered_code ?? "" },
-          { reply_markup: backToMenuKeyboard() });
+          { reply_markup: await backToMenuKeyboard() });
       }
       try { await grantReward(orderId); } catch { /* noop */ }
     } catch (e: any) {
@@ -204,7 +204,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
         : msg.includes("out_of_stock") ? "❌ Out of stock — contact support."
         : msg.includes("order_expired") ? "❌ Order has expired."
         : "❌ Failed: {error}";
-      await tReply(ctx, key, fallback, { error: msg }, { reply_markup: backToMenuKeyboard() });
+      await tReply(ctx, key, fallback, { error: msg }, { reply_markup: await backToMenuKeyboard() });
     }
   });
 
@@ -213,7 +213,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
     await ctx.answerCallbackQuery();
     await supabaseAdmin.from("orders").update({ status: "expired" }).eq("id", orderId).eq("status", "pending");
     await setUserState(ctx.from!.id, null);
-    await tEdit(ctx, "order_cancelled", "❌ Order cancelled.", {}, { reply_markup: backToMenuKeyboard() });
+    await tEdit(ctx, "order_cancelled", "❌ Order cancelled.", {}, { reply_markup: await backToMenuKeyboard() });
   });
 
   // ---- My orders
@@ -227,7 +227,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       .order("created_at", { ascending: false })
       .range(page * 10, page * 10 + 9);
     if (!data || data.length === 0) {
-      await tEdit(ctx, "orders_empty", "📦 You have no orders yet.", {}, { reply_markup: backToMenuKeyboard() });
+      await tEdit(ctx, "orders_empty", "📦 You have no orders yet.", {}, { reply_markup: await backToMenuKeyboard() });
       return;
     }
     const lineTpl = await getMessageTemplate("orders_line", "*{short_id}* — {icon} {name} — {total} ETB — _{status}_");
@@ -236,7 +236,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       total: formatPrice(o.total_cents), status: o.status,
     }));
     await tEdit(ctx, "orders_header", "📦 *Your orders:*\n\n{list}", { list: lines.join("\n") },
-      { reply_markup: backToMenuKeyboard() });
+      { reply_markup: await backToMenuKeyboard() });
   });
 
   bot.callbackQuery("orders:pending", async (ctx) => {
@@ -247,7 +247,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       .eq("user_telegram_id", ctx.from!.id).eq("status", "pending")
       .order("created_at", { ascending: false }).limit(5);
     if (!data || data.length === 0) {
-      await tEdit(ctx, "orders_pending_empty", "⏳ No pending payments.", {}, { reply_markup: backToMenuKeyboard() });
+      await tEdit(ctx, "orders_pending_empty", "⏳ No pending payments.", {}, { reply_markup: await backToMenuKeyboard() });
       return;
     }
     const header = await getMessageTemplate("orders_pending_header", "⏳ *Pending payments — tap to resume:*\n\n");
@@ -280,12 +280,12 @@ export function registerCustomer(bot: Bot<BotCtx>) {
         username: ctx.from?.username ?? "—", id: ctx.from?.id,
         since: u?.created_at ? new Date(u.created_at).toLocaleDateString() : "—",
         orders: orderCount ?? 0, balance: formatPrice(balance),
-      }, { reply_markup: backToMenuKeyboard() });
+      }, { reply_markup: await backToMenuKeyboard() });
   });
 
   bot.callbackQuery("support", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await tEdit(ctx, "support", "Contact admin.", {}, { reply_markup: backToMenuKeyboard() });
+    await tEdit(ctx, "support", "Contact admin.", {}, { reply_markup: await backToMenuKeyboard() });
   });
 
   // ---- WALLET
@@ -318,7 +318,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
   bot.callbackQuery("wallet:deposit", async (ctx) => {
     await ctx.answerCallbackQuery();
     await tEdit(ctx, "wallet_deposit_prompt", "💼 *Deposit to wallet*\n\nPick an amount:", {},
-      { reply_markup: depositAmountKeyboard() });
+      { reply_markup: await depositAmountKeyboard() });
   });
 
   bot.callbackQuery("wallet:depCustom", async (ctx) => {
@@ -365,7 +365,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
     await tEdit(ctx, "referral_home",
       "🎁 *Referrals*\n\nYour link:\n`{link}`\n\nTotal referred: *{total}*\nPending earnings: *{pending} ETB*\nPaid out: *{paid} ETB*\n\n_You earn a configurable % of every verified order your referrals make._",
       { link, total: stats.totalReferred, pending: formatPrice(stats.pendingCents), paid: formatPrice(stats.paidCents) },
-      { reply_markup: referralKeyboard(stats.pendingCents > 0) });
+      { reply_markup: await referralKeyboard(stats.pendingCents > 0) });
   });
 
   bot.callbackQuery("ref:payout", async (ctx) => {
@@ -458,7 +458,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
     if (!receipt.ok) {
       await tReply(ctx, "payment_receipt_download_failed",
         "❌ Could not read that receipt file. Please upload a clear image receipt or paste the transaction reference.",
-        { reason: receipt.reason }, { reply_markup: awaitingReferenceKeyboard(state.order_id) });
+        { reason: receipt.reason }, { reply_markup: await awaitingReferenceKeyboard(state.order_id) });
       return;
     }
 
@@ -512,7 +512,7 @@ async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, resu
     await tReply(ctx, "payment_waiting_manual",
       "✅ Your payment was verified successfully.\n\nYour order *{short_id}* is waiting for manual delivery by admin. You will be notified here as soon as it's delivered.",
       { short_id: result.short_id ?? state.short_id },
-      { reply_markup: backToMenuKeyboard() });
+      { reply_markup: await backToMenuKeyboard() });
     await notifyAdminsManualDelivery(getBot(), state.order_id);
     return;
   }
@@ -520,7 +520,7 @@ async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, resu
   await tReply(ctx, "payment_failed",
     "❌ Payment verification failed for order {short_id}.\n\nReason: {reason}\n\nDouble-check the reference and try again, or contact support.",
     { short_id: state.short_id, reason: result.reason ?? "unknown error" },
-    { reply_markup: awaitingReferenceKeyboard(state.order_id) });
+    { reply_markup: await awaitingReferenceKeyboard(state.order_id) });
 }
 
 async function downloadReceiptFile(ctx: BotCtx): Promise<{ ok: true; file: Blob; hash: string } | { ok: false; reason: string }> {
@@ -783,8 +783,8 @@ async function showPaymentInstructions(ctx: BotCtx, orderId: string, method: "te
   });
   await setUserState(ctx.from!.id, { awaiting: "payment_reference", order_id: orderId, short_id: o.short_id });
   try {
-    await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: awaitingReferenceKeyboard(orderId) });
+    await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: await awaitingReferenceKeyboard(orderId) });
   } catch {
-    await ctx.reply(text, { parse_mode: "Markdown", reply_markup: awaitingReferenceKeyboard(orderId) });
+    await ctx.reply(text, { parse_mode: "Markdown", reply_markup: await awaitingReferenceKeyboard(orderId) });
   }
 }

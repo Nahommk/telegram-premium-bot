@@ -496,7 +496,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
         delivered: s.delivered, pending: s.pending, manual: s.manualWaiting,
         rev_today: formatPrice(s.revenueToday), rev_week: formatPrice(s.revenueWeek), rev_month: formatPrice(s.revenueMonth),
         ok: s.paymentSuccess, fail: s.paymentFailure, top,
-      }, { reply_markup: backToMenuKeyboard() });
+      }, { reply_markup: await backToMenuKeyboard() });
   });
 
   // ============ Admins management ============
