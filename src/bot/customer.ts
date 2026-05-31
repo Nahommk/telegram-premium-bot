@@ -137,7 +137,11 @@ export function registerCustomer(bot: Bot<BotCtx>) {
         warranty: p.warranty_text || "—",
         stock,
       },
-      { reply_markup: quantityKeyboard(p.id, Array.isArray(p.quantity_presets) ? (p.quantity_presets as number[]) : [1, 2, 5, 10]) },
+      {   p.id,
+  Array.isArray(p.quantity_presets)
+    ? (p.quantity_presets as number[])
+    : [1, 2, 5, 10]
+),reply_markup: await quantityKeyboard(p.id, Array.isArray(p.quantity_presets) ? (p.quantity_presets as number[]) : [1, 2, 5, 10]) },
     );
   });
 

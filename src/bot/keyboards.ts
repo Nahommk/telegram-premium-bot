@@ -52,15 +52,23 @@ export function productListKeyboard(
   return { inline_keyboard: rows };
 }
 
-export function quantityKeyboard(productId: string, presets: number[]): InlineKeyboard {
+export async function quantityKeyboard(productId: string, presets: number[]): InlineKeyboard {
   const kb = new InlineKeyboard();
   presets.forEach((q, i) => {
     kb.text(`x${q}`, `shop:q:${productId}:${q}`);
     if ((i + 1) % 4 === 0) kb.row();
   });
-  kb.row().text("✏️ Custom qty", `shop:qcustom:${productId}`);
-  kb.row().text("⬅️ Back", "shop:list:0");
-  return kb;
+  return {
+  inline_keyboard: [
+    ...((kb as any).inline_keyboard ?? []),
+    [
+      { ...(await btnTpl("btn_custom_qty", "Custom qty", "✏️")), callback_data: `shop:qcustom:${productId}` },
+    ],
+    [
+      { ...(await btnTpl("btn_back", "Back", "⬅️")), callback_data: "shop:list:0" },
+    ],
+  ],
+};
 }
 
 export async function paymentMethodKeyboard(orderId: string, walletBalanceCents = 0, orderTotalCents = 0) {
