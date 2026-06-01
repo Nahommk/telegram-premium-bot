@@ -384,7 +384,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
       .text(await getMessageTemplate("admin_btn_buttons_back", "⬅️ Buttons"), "adm:btn:list");
     await tAEdit(ctx, "button_view",
       "*{key}*\nLabel: {label}\nEmoji: {emoji}\nPremium Icon ID: {premium}\nVisible: {visible}\nOrder: {sort}",
-      { key, label: b.label, emoji: b.emoji || "—", visible: b.is_visible, sort: b.sort_order },
+      {   key,   label: b.label,   emoji: b.emoji || "—",   premium: b.icon_custom_emoji_id || "—",   visible: b.is_visible,   sort: b.sort_order, },
       { reply_markup: kb });
   });
 
