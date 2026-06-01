@@ -22,7 +22,7 @@ function fallbackText(label: string, emoji = "") {
   return cleanEmoji ? `${cleanEmoji} ${cleanLabel}` : cleanLabel;
 }
 
-async function premiumBtn(
+export async function premiumBtn(
   key: string,
   fallbackLabel: string,
   fallbackEmoji: string,

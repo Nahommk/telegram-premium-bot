@@ -5,7 +5,7 @@ import type { BotCtx } from "./bot";
 import {
   backToMenuKeyboard, productListKeyboard, quantityKeyboard,
   paymentMethodKeyboard, awaitingReferenceKeyboard, walletHomeKeyboard,
-  depositAmountKeyboard, referralKeyboard, btnTpl,
+  depositAmountKeyboard, referralKeyboard, premiumBtn,
 } from "./keyboards";
 import { dynamicMainMenu } from "@/services/buttons";
 import { formatPrice, sha256Hex } from "./util";
@@ -128,22 +128,35 @@ export function registerCustomer(bot: Bot<BotCtx>) {
     } else {
       stock = await getMessageTemplate("stock_manual_label", "manual delivery");
     }
-    await tEdit(ctx, "product_view",
-      "{icon} *{name}*\n\n{description}\n\n💵 Price: *{price} ETB* / unit\n🛡 Warranty: {warranty}\n📦 Stock: {stock}\n\nPick a quantity:",
-      {
-        icon: p.icon, name: p.name,
-        description: p.description || "_No description_",
-        price: formatPrice(p.price_cents),
-        warranty: p.warranty_text || "—",
-        stock,
-      },
-      {   p.id,
-  Array.isArray(p.quantity_presets)
-    ? (p.quantity_presets as number[])
-    : [1, 2, 5, 10]
-),reply_markup: await quantityKeyboard(p.id, Array.isArray(p.quantity_presets) ? (p.quantity_presets as number[]) : [1, 2, 5, 10]) },
-    );
-  });
+    await tEdit(
+  ctx,
+  "product_view",
+  `{icon} *{name}*
+
+{description}
+
+💵 Price: *{price} ETB* / unit
+🛡 Warranty: {warranty}
+📦 Stock: {stock}
+
+Pick a quantity:`,
+  {
+    icon: p.icon,
+    name: p.name,
+    description: p.description || "_No description_",
+    price: formatPrice(p.price_cents),
+    warranty: p.warranty_text || "—",
+    stock,
+  },
+  {
+    reply_markup: await quantityKeyboard(
+      p.id,
+      Array.isArray(p.quantity_presets) ?
+      (p.quantity_presets as number[]) :
+      [1, 2, 5, 10],
+    ),
+  },
+);
 
   bot.callbackQuery(/^shop:q:([^:]+):(\d+)$/, async (ctx) => {
     const productId = ctx.match![1];
