@@ -1,39 +1,14 @@
-import { loadButtons } from "@/services/buttons";
-import { InlineKeyboard } from "grammy";
+import { loadButtons, dynamicMainMenu } from "@/services/buttons";
 import { stripEmojiTags } from "@/bot/messaging";
 
-export { dynamicMainMenu } from "@/services/buttons";
+export { dynamicMainMenu };
 
-export async function btnTpl(key: string, fallbackLabel: string, fallbackEmoji = "") {
-  const buttons = await loadButtons(true);
-  const b = buttons.find((x) => x.key === key);
-
-  const label = b?.label ?? fallbackLabel;
-  const emoji = b?.emoji ?? fallbackEmoji;
-
-  return {
-    text: b?.icon_custom_emoji_id
-      ? stripEmojiTags(label)
-      : `${stripEmojiTags(emoji)} ${stripEmojiTags(label)}`.trim(),
-    ...(b?.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
-  };
-}
-
-export function mainMenuKeyboard(showAdmin: boolean): InlineKeyboard {
-  const kb = new InlineKeyboard()
-    .text("🛒 Shop", "shop:list:0").text("📦 My Orders", "orders:mine:0").row()
-    .text("⏳ Pending", "orders:pending").text("💼 Wallet", "wallet:home").row()
-    .text("🎁 Referrals", "ref:home").text("👤 Profile", "profile").row()
-    .text("💬 Support", "support");
-
-  if (showAdmin) kb.row().text("🛠 Admin", "admin:menu");
-  return kb;
-}
+type BtnStyle = "primary" | "success" | "danger";
 
 type PremiumButton = {
   text: string;
   callback_data: string;
-  style?: "primary" | "success" | "danger";
+  style?: BtnStyle;
   icon_custom_emoji_id?: string;
 };
 
@@ -41,23 +16,39 @@ type PremiumKeyboard = {
   inline_keyboard: PremiumButton[][];
 };
 
-function withCallback(
-  btn: Awaited<ReturnType<typeof btnTpl>>,
+function fallbackText(label: string, emoji = "") {
+  const cleanLabel = stripEmojiTags(label);
+  const cleanEmoji = stripEmojiTags(emoji);
+  return cleanEmoji ? `${cleanEmoji} ${cleanLabel}` : cleanLabel;
+}
+
+async function premiumBtn(
+  key: string,
+  fallbackLabel: string,
+  fallbackEmoji: string,
   callback_data: string,
-  style?: PremiumButton["style"],
-): PremiumButton {
+  style?: BtnStyle,
+): Promise<PremiumButton> {
+  const buttons = await loadButtons(true);
+  const b = buttons.find((x) => x.key === key);
+
+  const label = b?.label ?? fallbackLabel;
+  const emoji = b?.emoji ?? fallbackEmoji;
+  const iconId = b?.icon_custom_emoji_id ? String(b.icon_custom_emoji_id) : undefined;
+
   return {
-    text: btn.text,
+    text: iconId ? stripEmojiTags(label) : fallbackText(label, emoji),
     callback_data,
     ...(style ? { style } : {}),
-    ...(btn.icon_custom_emoji_id ? { icon_custom_emoji_id: btn.icon_custom_emoji_id } : {}),
+    ...(iconId ? { icon_custom_emoji_id: iconId } : {}),
   };
 }
 
 export async function backToMenuKeyboard(): Promise<PremiumKeyboard> {
-  const menuBtn = await btnTpl("btn_back", "Main menu", "⬅️");
   return {
-    inline_keyboard: [[withCallback(menuBtn, "menu")]],
+    inline_keyboard: [
+      [await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary")],
+    ],
   };
 }
 
@@ -92,8 +83,9 @@ export async function productListKeyboard(
 
   if (nav.length) rows.push(nav);
 
-  const menuBtn = await btnTpl("btn_back", "Main menu", "⬅️");
-  rows.push([withCallback(menuBtn, "menu")]);
+  rows.push([
+    await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary"),
+  ]);
 
   return { inline_keyboard: rows };
 }
@@ -102,25 +94,28 @@ export async function quantityKeyboard(productId: string, presets: number[]): Pr
   const rows: PremiumButton[][] = [];
   let row: PremiumButton[] = [];
 
-  presets.forEach((q) => {
+  for (const q of presets) {
     row.push({
       text: `x${q}`,
       callback_data: `shop:q:${productId}:${q}`,
+      style: "primary",
     });
 
     if (row.length === 4) {
       rows.push(row);
       row = [];
     }
-  });
+  }
 
   if (row.length) rows.push(row);
 
-  const customQtyBtn = await btnTpl("btn_custom_qty", "Custom qty", "✏️");
-  const backBtn = await btnTpl("btn_back", "Back", "⬅️");
+  rows.push([
+    await premiumBtn("btn_custom_qty", "Custom qty", "✏️", `shop:qcustom:${productId}`, "primary"),
+  ]);
 
-  rows.push([withCallback(customQtyBtn, `shop:qcustom:${productId}`)]);
-  rows.push([withCallback(backBtn, "shop:list:0")]);
+  rows.push([
+    await premiumBtn("btn_back", "Back", "⬅️", "shop:list:0", "primary"),
+  ]);
 
   return { inline_keyboard: rows };
 }
@@ -130,54 +125,49 @@ export async function paymentMethodKeyboard(
   walletBalanceCents = 0,
   orderTotalCents = 0,
 ): Promise<PremiumKeyboard> {
-  const telebirr = await btnTpl("btn_telebirr", "Telebirr", "📱");
-  const cbe = await btnTpl("btn_cbe", "CBE", "🏦");
-
   const rows: PremiumButton[][] = [
     [
-      withCallback(telebirr, `pay:method:${orderId}:telebirr`),
-      withCallback(cbe, `pay:method:${orderId}:cbe`),
+      await premiumBtn("btn_telebirr", "Telebirr", "📱", `pay:method:${orderId}:telebirr`, "primary"),
+      await premiumBtn("btn_cbe", "CBE", "🏦", `pay:method:${orderId}:cbe`, "primary"),
     ],
   ];
 
   if (walletBalanceCents >= orderTotalCents && orderTotalCents > 0) {
-    const wallet = await btnTpl("btn_wallet", "Pay from Wallet", "💼");
-
     rows.push([
-      {
-        ...withCallback(wallet, `pay:wallet:${orderId}`),
-        text: `${wallet.text} (${(walletBalanceCents / 100).toFixed(2)} ETB)`,
-      },
+      await premiumBtn("btn_wallet", "Pay from Wallet", "💼", `pay:wallet:${orderId}`, "success"),
     ]);
   }
 
-  const cancel = await btnTpl("btn_cancel", "Cancel", "❌");
-  rows.push([withCallback(cancel, `order:cancel:${orderId}`)]);
+  rows.push([
+    await premiumBtn("btn_cancel", "Cancel", "❌", `order:cancel:${orderId}`, "danger"),
+  ]);
 
   return { inline_keyboard: rows };
 }
 
 export async function awaitingReferenceKeyboard(orderId: string): Promise<PremiumKeyboard> {
-  const instructions = await btnTpl("btn_instructions", "Instructions again", "📋");
-  const cancel = await btnTpl("btn_cancel", "Cancel order", "❌");
-
   return {
     inline_keyboard: [
-      [withCallback(instructions, `pay:show:${orderId}`)],
-      [withCallback(cancel, `order:cancel:${orderId}`)],
+      [
+        await premiumBtn("btn_instructions", "Instructions again", "📋", `pay:show:${orderId}`, "primary"),
+      ],
+      [
+        await premiumBtn("btn_cancel", "Cancel order", "❌", `order:cancel:${orderId}`, "danger"),
+      ],
     ],
   };
 }
 
 export async function walletHomeKeyboard(): Promise<PremiumKeyboard> {
-  const deposit = await btnTpl("btn_deposit", "Deposit", "➕");
-  const history = await btnTpl("btn_history", "History", "📜");
-  const menu = await btnTpl("btn_back", "Main menu", "⬅️");
-
   return {
     inline_keyboard: [
-      [withCallback(deposit, "wallet:deposit"), withCallback(history, "wallet:history")],
-      [withCallback(menu, "menu")],
+      [
+        await premiumBtn("btn_deposit", "Deposit", "➕", "wallet:deposit", "success"),
+        await premiumBtn("btn_history", "History", "📜", "wallet:history", "primary"),
+      ],
+      [
+        await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary"),
+      ],
     ],
   };
 }
@@ -186,25 +176,28 @@ export async function depositAmountKeyboard(): Promise<PremiumKeyboard> {
   const rows: PremiumButton[][] = [];
   let row: PremiumButton[] = [];
 
-  [50, 100, 200, 500, 1000].forEach((amount) => {
+  for (const amount of [50, 100, 200, 500, 1000]) {
     row.push({
       text: `${amount} ETB`,
       callback_data: `wallet:depAmt:${amount}`,
+      style: "primary",
     });
 
     if (row.length === 3) {
       rows.push(row);
       row = [];
     }
-  });
+  }
 
   if (row.length) rows.push(row);
 
-  const customAmountBtn = await btnTpl("btn_custom_amount", "Custom", "✏️");
-  const walletHomeBtn = await btnTpl("btn_wallet_home", "Wallet", "⬅️");
+  rows.push([
+    await premiumBtn("btn_custom_amount", "Custom", "✏️", "wallet:depCustom", "primary"),
+  ]);
 
-  rows.push([withCallback(customAmountBtn, "wallet:depCustom")]);
-  rows.push([withCallback(walletHomeBtn, "wallet:home")]);
+  rows.push([
+    await premiumBtn("btn_wallet_home", "Wallet", "⬅️", "wallet:home", "primary"),
+  ]);
 
   return { inline_keyboard: rows };
 }
@@ -213,42 +206,51 @@ export async function referralKeyboard(canPayout: boolean): Promise<PremiumKeybo
   const rows: PremiumButton[][] = [];
 
   if (canPayout) {
-    rows.push([{ text: "💼 Move earnings to wallet", callback_data: "ref:payout" }]);
+    rows.push([
+      {
+        text: "Move earnings to wallet",
+        callback_data: "ref:payout",
+        style: "success",
+      },
+    ]);
   }
 
-  const menuBtn = await btnTpl("btn_back", "Main menu", "⬅️");
-  rows.push([withCallback(menuBtn, "menu")]);
+  rows.push([
+    await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary"),
+  ]);
 
   return { inline_keyboard: rows };
 }
 
 export async function adminMenuKeyboard(): Promise<PremiumKeyboard> {
-  const menuBtn = await btnTpl("btn_back", "Main menu", "⬅️");
-
   return {
     inline_keyboard: [
       [
-        { text: "📦 Products", callback_data: "adm:p:list:0" },
-        { text: "🎟 Stock", callback_data: "adm:s:menu" },
+        { text: "📦 Products", callback_data: "adm:p:list:0", style: "primary" },
+        { text: "🎟 Stock", callback_data: "adm:s:menu", style: "primary" },
       ],
       [
-        { text: "🧾 Orders", callback_data: "adm:o:list:pending:0" },
-        { text: "⏳ Manual", callback_data: "adm:o:list:paid_waiting_delivery:0" },
+        { text: "🧾 Orders", callback_data: "adm:o:list:pending:0", style: "primary" },
+        { text: "⏳ Manual", callback_data: "adm:o:list:paid_waiting_delivery:0", style: "primary" },
       ],
       [
-        { text: "👥 Users", callback_data: "adm:u:menu" },
-        { text: "💼 Wallet", callback_data: "adm:w:menu" },
+        { text: "👥 Users", callback_data: "adm:u:menu", style: "primary" },
+        { text: "💼 Wallet", callback_data: "adm:w:menu", style: "success" },
       ],
       [
-        { text: "📣 Broadcast", callback_data: "adm:b:new" },
-        { text: "🔘 Buttons", callback_data: "adm:btn:list" },
+        { text: "📣 Broadcast", callback_data: "adm:b:new", style: "primary" },
+        { text: "🔘 Buttons", callback_data: "adm:btn:list", style: "primary" },
       ],
       [
-        { text: "📝 Templates", callback_data: "adm:t:list" },
-        { text: "📊 Stats", callback_data: "adm:stats" },
+        { text: "📝 Templates", callback_data: "adm:t:list", style: "primary" },
+        { text: "📊 Stats", callback_data: "adm:stats", style: "primary" },
       ],
-      [{ text: "🛡 Admins", callback_data: "adm:adm:list" }],
-      [withCallback(menuBtn, "menu")],
+      [
+        { text: "🛡 Admins", callback_data: "adm:adm:list", style: "danger" },
+      ],
+      [
+        await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary"),
+      ],
     ],
   };
 }
