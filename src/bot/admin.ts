@@ -388,13 +388,20 @@ export function registerAdmin(bot: Bot<BotCtx>) {
       { reply_markup: kb });
   });
 
-  bot.callbackQuery(/^adm:btn:(label|emoji):(.+)$/, async (ctx) => {
+  bot.callbackQuery(/^adm:btn:(label|emoji|premium):(.+)$/, async (ctx) => {
     if (!requireAdmin(ctx)) return;
     const field = ctx.match![1]; const key = ctx.match![2];
     await ctx.answerCallbackQuery();
     await setState(ctx.from!.id, { admin: "edit_button", field, key });
-    await tA(ctx, `edit_button_${field}_prompt`,
-      field === "label" ? "Send new label text:" : "Send new emoji (single char):");
+    await tA(
+  ctx,
+  `edit_button_${field}_prompt`,
+  field === "label"
+    ? "Send new label text:"
+    : field === "emoji"
+      ? "Send fallback emoji:"
+      : "Send the premium custom emoji itself, or paste the custom emoji ID:",
+);
   });
 
   bot.callbackQuery(/^adm:btn:toggle:(.+)$/, async (ctx) => {
@@ -664,29 +671,56 @@ export function registerAdmin(bot: Bot<BotCtx>) {
         return;
       }
       case "edit_button": {
-        if (!text) return next();
-        const field = state.field as string; const key = state.key as string;
-        let update: any;
+  if (!text) return next();
 
-if (field === "label") {
-  update = { label: text };
-} else {
+  const field = state.field as string;
+  const key = state.key as string;
+
   const customEmoji = ctx.message?.entities?.find(
-    (e: any) => e.type === "custom_emoji"
+    (e: any) => e.type === "custom_emoji",
   ) as any;
 
-  update = {
-    emoji: text.slice(0, 4),
-    icon_custom_emoji_id: customEmoji?.custom_emoji_id || null,
-  };
+  let update: any = {};
+
+  if (field === "label") {
+    update = { label: text };
+  } else if (field === "emoji") {
+    update = { emoji: text.slice(0, 4) };
+  } else if (field === "premium") {
+    const idFromEmoji = customEmoji?.custom_emoji_id;
+    const idFromText = text.match(/\d{8,}/)?.[0];
+    const iconId = idFromEmoji || idFromText;
+
+    if (!iconId) {
+      await tA(
+        ctx,
+        "edit_button_premium_invalid",
+        "❌ I couldn't detect a premium custom emoji ID. Send the premium emoji itself or paste the numeric ID.",
+      );
+      return;
+    }
+
+    update = { icon_custom_emoji_id: String(iconId) };
+  } else {
+    return next();
+  }
+
+  const { error } = await supabaseAdmin
+    .from("button_templates")
+    .update(update)
+    .eq("key", key);
+
+  if (error) {
+    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
+    return;
+  }
+
+  invalidateButtonsCache();
+  await audit(ctx.from!.id, "button.edit", { key, field, update });
+  await setState(ctx.from!.id, null);
+  await tA(ctx, "generic_updated", "✅ Updated.");
+  return;
 }
-        await supabaseAdmin.from("button_templates").update(update).eq("key", key);
-        invalidateButtonsCache();
-        await audit(ctx.from!.id, "button.edit", { key, field });
-        await setState(ctx.from!.id, null);
-        await tA(ctx, "generic_updated", "✅ Updated.");
-        return;
-      }
       case "wallet_adjust_user": {
         if (!text) return next();
         const tid = parseInt(text.replace("@", ""), 10);
