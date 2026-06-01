@@ -157,7 +157,7 @@ Pick a quantity:`,
     ),
   },
 );
-
+});
   bot.callbackQuery(/^shop:q:([^:]+):(\d+)$/, async (ctx) => {
     const productId = ctx.match![1];
     const qty = parseInt(ctx.match![2], 10);
