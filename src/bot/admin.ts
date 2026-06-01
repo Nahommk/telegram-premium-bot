@@ -53,7 +53,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
   bot.callbackQuery("admin:menu", async (ctx) => {
     if (!requireAdmin(ctx)) return;
     await ctx.answerCallbackQuery();
-    await tAEdit(ctx, "menu", "🛠 *Admin panel*", {}, { reply_markup: adminMenuKeyboard() });
+    await tAEdit(ctx, "menu", "🛠 *Admin panel*", {}, { reply_markup: await adminMenuKeyboard() });
   });
 
   // ============ Products ============
