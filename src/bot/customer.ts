@@ -129,34 +129,27 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       stock = await getMessageTemplate("stock_manual_label", "manual delivery");
     }
     await tEdit(
-  ctx,
-  "product_view",
-  `{icon} *{name}*
+ const productIcon = /^\d{8,}$/.test(String(p.icon || "")) ?
+  `<tg-emoji emoji-id="${p.icon}">🎮</tg-emoji>` :
+  String(p.icon || "");
 
-{description}
+const productText =
+  `${productIcon} <b>${p.name}</b>\n\n` +
+  `${p.description || "<i>No description</i>"}\n\n` +
+  `💵 Price: <b>${formatPrice(p.price_cents)} ETB</b> / unit\n` +
+  `🛡 Warranty: ${p.warranty_text || "—"}\n` +
+  `📦 Stock: ${stock}\n\n` +
+  `Pick a quantity:`;
 
-💵 Price: *{price} ETB* / unit
-🛡 Warranty: {warranty}
-📦 Stock: {stock}
-
-Pick a quantity:`,
-  {
-    icon: /^\d{8,}$/.test(String(p.icon || "")) ? "" : p.icon,
-    name: p.name,
-    description: p.description || "_No description_",
-    price: formatPrice(p.price_cents),
-    warranty: p.warranty_text || "—",
-    stock,
-  },
-  {
-    reply_markup: await quantityKeyboard(
-      p.id,
-      Array.isArray(p.quantity_presets) ?
-      (p.quantity_presets as number[]) :
-      [1, 2, 5, 10],
-    ),
-  },
-);
+await ctx.editMessageText(productText, {
+  parse_mode: "HTML",
+  reply_markup: await quantityKeyboard(
+    p.id,
+    Array.isArray(p.quantity_presets) ?
+    (p.quantity_presets as number[]) :
+    [1, 2, 5, 10],
+  ),
+});
 });
   bot.callbackQuery(/^shop:q:([^:]+):(\d+)$/, async (ctx) => {
     const productId = ctx.match![1];
