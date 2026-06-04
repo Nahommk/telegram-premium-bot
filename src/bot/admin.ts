@@ -109,7 +109,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     await tAEdit(ctx, "product_view",
       "{icon} *{name}*\n\n{description}\n\n💵 {price} ETB\n🛡 {warranty}\n🚚 Delivery: *{mode}*\n📦 Stock: {avail} available / {used} sold\nStatus: {status}",
       {
-        icon: p.icon, name: p.name,
+        icon: /^\d{8,}$/.test(String(p.icon || "")) ? "" : p.icon, name: p.name,
         description: p.description || "_no description_",
         price: formatPrice(p.price_cents),
         warranty: p.warranty_text || "—",
@@ -606,7 +606,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
         if (field === "name") update.name = text;
         else if (field === "desc") update.description = text;
         else if (field === "warranty") update.warranty_text = text;
-        else if (field === "icon") update.icon = text.slice(0, 4);
+        else if (field === "icon") {   const customEmoji = ctx.message?.entities?.find(     (e: any) => e.type === "custom_emoji",   ) as any;    update.icon = customEmoji?.custom_emoji_id     ? String(customEmoji.custom_emoji_id)     : text.trim(); }
         else if (field === "price") {
           const n = parseFloat(text);
           if (!Number.isFinite(n) || n < 0) { await tA(ctx, "invalid_input", "Invalid."); return; }

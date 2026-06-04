@@ -141,7 +141,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
 
 Pick a quantity:`,
   {
-    icon: p.icon,
+    icon: /^\d{8,}$/.test(String(p.icon || "")) ? "" : p.icon,
     name: p.name,
     description: p.description || "_No description_",
     price: formatPrice(p.price_cents),

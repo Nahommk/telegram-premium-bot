@@ -63,9 +63,14 @@ export async function productListKeyboard(
   for (const p of products) {
     rows.push([
       {
-        text: `${p.icon} ${p.name} — ${(p.price_cents / 100).toFixed(2)} ETB`,
-        callback_data: `shop:p:${p.id}`,
-        style: p.in_stock === false ? "danger" : "success",
+        text: /^\d{8,}$/.test(String(p.icon || ""))
+  ? `${p.name} — ${(p.price_cents / 100).toFixed(2)} ETB`
+  : `${stripEmojiTags(String(p.icon || ""))} ${p.name} — ${(p.price_cents / 100).toFixed(2)} ETB`.trim(),
+callback_data: `shop:p:${p.id}`,
+style: p.in_stock === false ? "danger" : "success",
+...(/^\d{8,}$/.test(String(p.icon || ""))
+  ? { icon_custom_emoji_id: String(p.icon) }
+  : {}),
       },
     ]);
   }
