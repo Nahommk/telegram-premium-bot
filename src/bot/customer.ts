@@ -24,7 +24,7 @@ import {
 import { notifyAdminsManualDelivery } from "@/services/manualDelivery";
 import { recordAbuse } from "@/services/security";
 import { getBot } from "./bot";
-import { tReply, tEdit } from "./messaging";
+import { tReply, tEdit, toHtml } from "./messaging";
 import { renderMessage, getMessageTemplate, renderMessageTemplate } from "@/services/templates";
 
 const PAGE_SIZE = 6;
@@ -346,29 +346,51 @@ Pick a quantity:`,
     await askDepositMethod(ctx, amt);
   });
 
-  bot.callbackQuery(/^wallet:depMethod:(\d+):(telebirr|cbe)$/, async (ctx) => {
-    const amount = parseInt(ctx.match![1], 10);
-    const method = ctx.match![2] as "telebirr" | "cbe";
-    await ctx.answerCallbackQuery();
-    await setUserState(ctx.from!.id, {
-      awaiting: "wallet_deposit_reference", amount_cents: amount * 100, method,
-    });
-    const text = await buildInstructions(method, {
-      total: amount.toFixed(2), short_id: "DEPOSIT", quantity: 1, product_name: "Wallet deposit",
-    });
-    const cancelLabel = await getMessageTemplate("btn_cancel", "❌ Cancel");
-    try {
-      await ctx.editMessageText(text, {
-        parse_mode: "Markdown",
-        reply_markup: new InlineKeyboard().text(cancelLabel, "wallet:home"),
-      });
-    } catch {
-      await ctx.reply(text, { parse_mode: "Markdown", reply_markup: new InlineKeyboard().text(cancelLabel, "wallet:home") });
-    }
-    await tReply(ctx, "wallet_deposit_reference_prompt",
-      "Send the transaction reference or upload a clear receipt image here.");
+bot.callbackQuery(/^wallet:depMethod:(\d+(?:\.\d+)?):(telebirr|cbe)$/, async (ctx) => {
+  const amount = parseFloat(ctx.match![1]);
+  const method = ctx.match![2] as "telebirr" | "cbe";
+  
+  await ctx.answerCallbackQuery();
+  
+  await setUserState(ctx.from!.id, {
+    awaiting: "wallet_deposit_reference",
+    amount_cents: Math.round(amount * 100),
+    method,
   });
-
+  
+  const text = await buildInstructions(method, {
+    total: amount.toFixed(2),
+    short_id: "DEPOSIT",
+    quantity: 1,
+    product_name: "Wallet deposit",
+  });
+  
+  const kb = {
+    inline_keyboard: [
+      [
+        await premiumBtn("btn_cancel", "Cancel", "❌", "wallet:home", "danger"),
+      ],
+    ],
+  };
+  
+  try {
+    await ctx.editMessageText(toHtml(text), {
+      parse_mode: "HTML",
+      reply_markup: kb,
+    });
+  } catch {
+    await ctx.reply(toHtml(text), {
+      parse_mode: "HTML",
+      reply_markup: kb,
+    });
+  }
+  
+  await tReply(
+    ctx,
+    "wallet_deposit_reference_prompt",
+    "Send the transaction reference or upload a clear receipt image here.",
+  );
+});
   // ---- REFERRALS
   bot.callbackQuery("ref:home", async (ctx) => {
     await ctx.answerCallbackQuery();
