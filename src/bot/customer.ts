@@ -110,46 +110,58 @@ export function registerCustomer(bot: Bot<BotCtx>) {
   });
 
   bot.callbackQuery(/^shop:p:(.+)$/, async (ctx) => {
-    const id = ctx.match![1];
-    const { data: p } = await supabaseAdmin
-      .from("products").select("id, name, icon, description, price_cents, warranty_text, quantity_presets, is_enabled, delivery_mode")
-      .eq("id", id).maybeSingle();
-    await ctx.answerCallbackQuery();
-    if (!p || !p.is_enabled) {
-      await tEdit(ctx, "product_unavailable", "Product not available.", {}, { reply_markup: await backToMenuKeyboard() });
-      return;
-    }
-    let stock = "—";
-    if (p.delivery_mode === "automatic") {
-      const { count } = await supabaseAdmin
-        .from("product_codes").select("id", { count: "exact", head: true })
-        .eq("product_id", p.id).eq("is_used", false);
-      stock = String(count ?? 0);
-    } else {
-      stock = await getMessageTemplate("stock_manual_label", "manual delivery");
-    }
-    await tEdit(
- const productIcon = /^\d{8,}$/.test(String(p.icon || "")) ?
-  `<tg-emoji emoji-id="${p.icon}">🎮</tg-emoji>` :
-  String(p.icon || "");
-
-const productText =
-  `${productIcon} <b>${p.name}</b>\n\n` +
-  `${p.description || "<i>No description</i>"}\n\n` +
-  `💵 Price: <b>${formatPrice(p.price_cents)} ETB</b> / unit\n` +
-  `🛡 Warranty: ${p.warranty_text || "—"}\n` +
-  `📦 Stock: ${stock}\n\n` +
-  `Pick a quantity:`;
-
-await ctx.editMessageText(productText, {
-  parse_mode: "HTML",
-  reply_markup: await quantityKeyboard(
-    p.id,
-    Array.isArray(p.quantity_presets) ?
-    (p.quantity_presets as number[]) :
-    [1, 2, 5, 10],
-  ),
-});
+  const id = ctx.match![1];
+  
+  const { data: p } = await supabaseAdmin
+    .from("products")
+    .select("id, name, icon, description, price_cents, warranty_text, quantity_presets, is_enabled, delivery_mode")
+    .eq("id", id)
+    .maybeSingle();
+  
+  await ctx.answerCallbackQuery();
+  
+  if (!p || !p.is_enabled) {
+    await tEdit(ctx, "product_unavailable", "Product not available.", {}, {
+      reply_markup: await backToMenuKeyboard(),
+    });
+    return;
+  }
+  
+  let stock = "—";
+  
+  if (p.delivery_mode === "automatic") {
+    const { count } = await supabaseAdmin
+      .from("product_codes")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", p.id)
+      .eq("is_used", false);
+    
+    stock = String(count ?? 0);
+  } else {
+    stock = await getMessageTemplate("stock_manual_label", "manual delivery");
+  }
+  
+  const productIcon = /^\d{8,}$/.test(String(p.icon || "")) ?
+    `<tg-emoji emoji-id="${p.icon}">🎮</tg-emoji>` :
+    String(p.icon || "");
+  
+  const productText =
+    `${productIcon} <b>${p.name}</b>\n\n` +
+    `${p.description || "<i>No description</i>"}\n\n` +
+    `💵 Price: <b>${formatPrice(p.price_cents)} ETB</b> / unit\n` +
+    `🛡 Warranty: ${p.warranty_text || "—"}\n` +
+    `📦 Stock: ${stock}\n\n` +
+    `Pick a quantity:`;
+  
+  await ctx.editMessageText(productText, {
+    parse_mode: "HTML",
+    reply_markup: await quantityKeyboard(
+      p.id,
+      Array.isArray(p.quantity_presets) ?
+      (p.quantity_presets as number[]) :
+      [1, 2, 5, 10],
+    ),
+  });
 });
   bot.callbackQuery(/^shop:q:([^:]+):(\d+)$/, async (ctx) => {
     const productId = ctx.match![1];
