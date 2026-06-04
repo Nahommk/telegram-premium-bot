@@ -174,10 +174,16 @@ async function callImage(file: Blob, suffix?: string): Promise<VerifyResult> {
 // Universal endpoint — auto-detects provider from the reference format.
 // Pass `suffix` (last 8 of CBE account) when known; Telebirr/Dashen ignore it.
 // Pass `phoneNumber` when known (required by CBE Birr / M-Pesa).
-export function verifyAuto(reference: string, suffix?: string, phoneNumber?: string): Promise<VerifyResult> {
-  const body: Record<string, unknown> = { reference };
-  if (suffix) body.suffix = suffix;
+export function verifyAuto(reference: string, suffix ? : string, phoneNumber ? : string): Promise < VerifyResult > {
+  const body: Record < string, unknown > = { reference };
+  
+  if (suffix) {
+    body.suffix = suffix;
+    body.accountSuffix = suffix;
+  }
+  
   if (phoneNumber) body.phoneNumber = phoneNumber;
+  
   return call("/verify", body);
 }
 
@@ -185,16 +191,20 @@ export function verifyTelebirr(reference: string): Promise<VerifyResult> {
   return call("/verify-telebirr", { reference });
 }
 
-export async function verifyCBE(reference: string, suffix?: string): Promise<VerifyResult> {
-  // Some CBE references (e.g. 10-char) reject when a suffix is supplied.
-  // Try with suffix first, then transparently retry without it.
-  const first = await call("/verify-cbe", suffix ? { reference, accountSuffix: suffix } : { reference });
-  if (first.ok) return first;
-  const err = (first.error || "").toLowerCase();
-  if (suffix && (err.includes("suffix") || err.includes("not expected"))) {
-    return call("/verify-cbe", { reference });
+export async function verifyCBE(reference: string, suffix ? : string): Promise < VerifyResult > {
+  if (!suffix) {
+    return {
+      ok: false,
+      raw: null,
+      error: "CBE account suffix missing. Configure payout_cbe account.",
+    };
   }
-  return first;
+  
+  return call("/verify-cbe", {
+    reference,
+    suffix,
+    accountSuffix: suffix,
+  });
 }
 
 export function verifyDashen(reference: string): Promise<VerifyResult> {

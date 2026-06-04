@@ -687,7 +687,7 @@ async function handleWalletDepositVerification(
     });
     await setUserState(ctx.from!.id, null);
     await tReply(ctx, "wallet_deposit_success",
-      "✅ Deposited *{amount} ETB*. New balance: *{balance} ETB*.",
+      "✅ Deposited {amount} ETB. New balance: *{balance} ETB*.",
       { reference, amount: formatPrice(v.amount_cents), balance: formatPrice(newBal) },
       { reply_markup: await walletHomeKeyboard() });
   } catch (e: any) {
