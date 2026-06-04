@@ -809,17 +809,35 @@ async function buildInstructions(
 
 async function showPaymentInstructions(ctx: BotCtx, orderId: string, method: "telebirr" | "cbe") {
   const { data: o } = await supabaseAdmin
-    .from("orders").select("short_id, quantity, total_cents, products(name)")
-    .eq("id", orderId).maybeSingle() as any;
+    .from("orders")
+    .select("short_id, quantity, total_cents, products(name)")
+    .eq("id", orderId)
+    .maybeSingle() as any;
+  
   if (!o) return;
+  
   const text = await buildInstructions(method, {
-    short_id: o.short_id, product_name: o.products?.name,
-    quantity: o.quantity, total: formatPrice(o.total_cents),
+    short_id: o.short_id,
+    product_name: o.products?.name,
+    quantity: o.quantity,
+    total: formatPrice(o.total_cents),
   });
-  await setUserState(ctx.from!.id, { awaiting: "payment_reference", order_id: orderId, short_id: o.short_id });
+  
+  await setUserState(ctx.from!.id, {
+    awaiting: "payment_reference",
+    order_id: orderId,
+    short_id: o.short_id,
+  });
+  
   try {
-    await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: await awaitingReferenceKeyboard(orderId) });
+    await ctx.editMessageText(toHtml(text), {
+      parse_mode: "HTML",
+      reply_markup: await awaitingReferenceKeyboard(orderId),
+    });
   } catch {
-    await ctx.reply(text, { parse_mode: "Markdown", reply_markup: await awaitingReferenceKeyboard(orderId) });
+    await ctx.reply(toHtml(text), {
+      parse_mode: "HTML",
+      reply_markup: await awaitingReferenceKeyboard(orderId),
+    });
   }
 }
