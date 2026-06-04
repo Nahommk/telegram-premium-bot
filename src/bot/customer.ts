@@ -670,9 +670,9 @@ async function handleWalletDepositVerification(
 }
 
 async function askDepositMethod(ctx: BotCtx, amount: number) {
-  const telebirr = await btnTpl("btn_telebirr", "Telebirr", "📱");
-  const cbe = await btnTpl("btn_cbe", "CBE", "🏦");
-  const back = await btnTpl("btn_back", "Back", "⬅️");
+  const telebirr = await premiumBtn("btn_telebirr", "Telebirr", "📱");
+  const cbe = await premiumBtn("btn_cbe", "CBE", "🏦");
+  const back = await premiumBtn("btn_back", "Back", "⬅️");
 
   const kb = {
     inline_keyboard: [
