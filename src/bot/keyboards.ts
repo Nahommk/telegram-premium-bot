@@ -29,7 +29,7 @@ export async function premiumBtn(
   callback_data: string,
   style?: BtnStyle,
 ): Promise<PremiumButton> {
-  const buttons = await loadButtons(true);
+  const buttons = await loadButtons(false);
   const b = buttons.find((x) => x.key === key);
 
   const label = b?.label ?? fallbackLabel;
