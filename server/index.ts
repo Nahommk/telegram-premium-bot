@@ -21,7 +21,10 @@ async function main() {
   const bot = getBot();
   await bot.init();
   console.log(`[bot] @${bot.botInfo.username} ready`);
-
+bot.api.setMyCommands([
+  { command: "start", description: "Start bot" },
+  { command: "help", description: "Help" },
+]).catch(console.error);
   if (MODE === "polling") {
     console.log("[bot] starting long-polling…");
     try {
