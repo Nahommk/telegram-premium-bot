@@ -41,7 +41,28 @@ async function getUserState(telegramId: number): Promise<Record<string, any> | n
     .from("admin_sessions").select("state").eq("telegram_id", telegramId).maybeSingle();
   return (data?.state as any) ?? null;
 }
+function premiumEmoji(id: string | null | undefined, fallback = "🔔") {
+  const clean = String(id || "").trim();
+  return /^\d{8,}$/.test(clean)
+    ? `<tg-emoji emoji-id="${clean}">${fallback}</tg-emoji>`
+    : fallback;
+}
 
+async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string, vars: Record<string, any>) {
+  const chatId = process.env.NOTIFY_CHANNEL_ID;
+  if (!chatId) return;
+
+  const text = await renderMessage(templateKey, fallback, vars);
+
+  try {
+    await ctx.api.sendMessage(chatId, toHtml(text), {
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    });
+  } catch (e) {
+    console.error("[notifyChannel]", e);
+  }
+}
 export function registerCustomer(bot: Bot<BotCtx>) {
   bot.command("start", async (ctx) => {
     const refId = parseStartPayload(ctx.message?.text);
