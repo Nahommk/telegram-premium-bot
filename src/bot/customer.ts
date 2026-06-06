@@ -696,33 +696,76 @@ async function handleWalletDepositVerification(
   }
 }
 
+function addUniqueDepositCents(amount: number): {
+  finalAmount: number;
+  uniqueCents: number;
+} {
+  const baseCents = Math.round(amount * 100);
+  const uniqueCents = Math.floor(Math.random() * 90) + 10;
+
+  return {
+    finalAmount: (baseCents + uniqueCents) / 100,
+    uniqueCents,
+  };
+}
+
 async function askDepositMethod(ctx: BotCtx, amount: number) {
-  const telebirr = await premiumBtn("btn_telebirr", "Telebirr", "📱");
-  const cbe = await premiumBtn("btn_cbe", "CBE", "🏦");
-  const back = await premiumBtn("btn_back", "Back", "⬅️");
+  const { finalAmount, uniqueCents } = addUniqueDepositCents(amount);
+  const finalAmountText = finalAmount.toFixed(2);
+
+  const telebirr = await premiumBtn(
+    "btn_telebirr",
+    "Telebirr",
+    "📱",
+    `wallet:depMethod:${finalAmountText}:telebirr`,
+    "primary",
+  );
+
+  const cbe = await premiumBtn(
+    "btn_cbe",
+    "CBE",
+    "🏦",
+    `wallet:depMethod:${finalAmountText}:cbe`,
+    "primary",
+  );
+
+  const back = await premiumBtn(
+    "btn_back",
+    "Back",
+    "⬅️",
+    "wallet:deposit",
+    "primary",
+  );
 
   const kb = {
     inline_keyboard: [
-      [
-        { ...telebirr, callback_data: `wallet:depMethod:${amount}:telebirr` },
-        { ...cbe, callback_data: `wallet:depMethod:${amount}:cbe` },
-      ],
-      [
-        { ...back, callback_data: "wallet:deposit" },
-      ],
+      [telebirr, cbe],
+      [back],
     ],
   };
 
-  const body = await renderMessage("wallet_deposit_method_prompt",
-    "Deposit *{amount} ETB* — pick payment method:", { amount });
+  const body = await renderMessage(
+    "wallet_deposit_method_prompt",
+    "Deposit requested: *{base} ETB*\n\nFor automatic verification, send exactly:\n\n*{final} ETB*\n\nExtra verification cents: *0.{unique} ETB*\n\n⚠️ Do not round the amount.",
+    {
+      base: amount.toFixed(2),
+      final: finalAmountText,
+      unique: String(uniqueCents).padStart(2, "0"),
+    },
+  );
 
   try {
-    await ctx.editMessageText(body, { parse_mode: "Markdown", reply_markup: kb });
+    await ctx.editMessageText(toHtml(body), {
+      parse_mode: "HTML",
+      reply_markup: kb,
+    });
   } catch {
-    await ctx.reply(body, { parse_mode: "Markdown", reply_markup: kb });
+    await ctx.reply(toHtml(body), {
+      parse_mode: "HTML",
+      reply_markup: kb,
+    });
   }
 }
-
 
 async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: number) {
   const { data: p } = await supabaseAdmin
