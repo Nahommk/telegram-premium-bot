@@ -341,10 +341,11 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   await ctx.answerCallbackQuery();
 
   const pinnedKeys = [
-    "welcome",
-    "payment_instruction_telebirr",
-    "payment_instruction_cbe",
-  ];
+  "welcome",
+  "payment_instruction_telebirr",
+  "payment_instruction_cbe",
+  "wallet_deposit_method_prompt",
+];
 
   const { data, error } = await supabaseAdmin
     .from("message_templates")
