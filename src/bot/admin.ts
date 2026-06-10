@@ -334,11 +334,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     await tA(ctx, "wallet_adjust_user_prompt", "Send the user's telegram ID to adjust wallet:");
   });
 
-  await supabaseAdmin
-    .from("message_templates")
-    .upsert(rows, { onConflict: "key", ignoreDuplicates: true } as any);
-}
-// ============ Templates ============
+  // ============ Templates ============
 bot.callbackQuery("adm:t:list", async (ctx) => {
   if (!requireAdmin(ctx)) return;
 
