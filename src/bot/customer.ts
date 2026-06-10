@@ -65,7 +65,12 @@ async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string,
 }
 export function registerCustomer(bot: Bot<BotCtx>) {
   bot.command("start", async (ctx) => {
-  const loading = await ctx.reply("⏳ Loading menu…");
+  const loading = await ctx.reply(
+  '<tg-emoji emoji-id="5350427505805238170">✍️</tg-emoji>',
+  {
+    parse_mode: "HTML",
+  },
+);
   
   try {
     const refId = parseStartPayload(ctx.message?.text);
