@@ -354,60 +354,80 @@ async function ensureAdminEditableTemplates() {
     .upsert(rows, { onConflict: "key", ignoreDuplicates: true } as any);
 }
   // ============ Templates ============
+// ============ Templates ============
 bot.callbackQuery("adm:t:list", async (ctx) => {
   if (!requireAdmin(ctx)) return;
   await ctx.answerCallbackQuery();
 
-  const rows = [
-    {
-      key: "wallet_deposit_method_prompt",
-      body:
-        "Deposit requested: *{base} ETB*\n\n" +
-        "For automatic verification, send exactly:\n\n" +
-        "*{final} ETB*\n\n" +
-        "Extra verification cents: *0.{unique} ETB*\n\n" +
-        "⚠️ Do not round the amount.",
-    },
-    {
-      key: "notify_wallet_deposit_verified",
-      body: "💼 *Wallet deposit verified*\n\nUser: `{user_id}`\nReference: `{reference}`\nAmount: {amount} ETB\nNew balance: {balance} ETB",
-    },
-    {
-      key: "notify_product_payment_verified",
-      body: "💰 *Product payment verified*\n\nOrder: `{order}`\nUser: `{user_id}`\nReference: `{reference}`\nAmount: *{amount} ETB*\nStatus: *{status}*",
-    },
-    {
-      key: "notify_product_delivered",
-      body: "✅ *Product delivered*\n\nOrder: `{order}`\nUser: `{user_id}`\nProduct: *{product}*",
-    },
-    {
-  key: "welcome",
-  body: "🔥 NEW SERVER TEST {first_name}!",
-},
-{
-  key: "payment_instruction_telebirr",
-  body:
-    "💳 *Payment — Telebirr*\n\n" +
-    "Order: *{short_id}*\n" +
-    "Amount: *{total} ETB*\n\n" +
-    "Send exactly *{total} ETB* to:\n" +
-    "📱 `{account}`\n" +
-    "👤 *{account_name}*\n\n" +
-    "Then send the transaction reference here.",
-},
-{
-  key: "payment_instruction_cbe",
-  body:
-    "💳 *Payment — CBE*\n\n" +
-    "Order: *{short_id}*\n" +
-    "Amount: *{total} ETB*\n\n" +
-    "Send exactly *{total} ETB* to:\n" +
-    "🏦 `{account}`\n" +
-    "👤 *{account_name}*\n\n" +
-    "Then send the FT reference here.",
-},
+  const pinnedKeys = [
+    "welcome",
+    "payment_instruction_telebirr",
+    "payment_instruction_cbe",
   ];
 
+  const { data, error } = await supabaseAdmin
+    .from("message_templates")
+    .select("key")
+    .order("key")
+    .limit(500);
+
+  if (error) {
+    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
+    return;
+  }
+
+  const kb = new InlineKeyboard();
+  const added = new Set<string>();
+
+  for (const key of pinnedKeys) {
+    kb.text(`⭐ ${key}`, `adm:t:edit:${key}`).row();
+    added.add(key);
+  }
+
+  for (const t of data ?? []) {
+    if (added.has(t.key)) continue;
+
+    kb.text(t.key, `adm:t:edit:${t.key}`).row();
+    added.add(t.key);
+  }
+
+  kb.text(await getMessageTemplate("admin_btn_admin", "⬅️ Admin"), "admin:menu");
+
+  await tAEdit(ctx, "templates_header", "📝 *Templates*", {}, {
+    reply_markup: kb,
+  });
+});
+
+bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
+  if (!requireAdmin(ctx)) return;
+
+  const key = ctx.match![1];
+
+  await ctx.answerCallbackQuery();
+
+  const { data, error } = await supabaseAdmin
+    .from("message_templates")
+    .select("body")
+    .eq("key", key)
+    .maybeSingle();
+
+  if (error) {
+    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
+    return;
+  }
+
+  await setState(ctx.from!.id, { admin: "edit_template", key });
+
+  await tA(
+    ctx,
+    "edit_template_prompt",
+    "Current *{key}*:\n\n{body}\n\nSend the new body.",
+    {
+      key,
+      body: data?.body ?? "_empty_",
+    },
+  );
+});
   for (const row of rows) {
     await supabaseAdmin
       .from("message_templates")
