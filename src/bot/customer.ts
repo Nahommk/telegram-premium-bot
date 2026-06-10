@@ -313,7 +313,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       .eq("user_telegram_id", ctx.from!.id).eq("status", "delivered");
     const balance = await getBalance(ctx.from!.id);
     await tEdit(ctx, "profile",
-      "👤 *Your profile*\n\nName: {first} {last}\nUsername: @{username}\nID: `{id}`\nMember since: {since}\nDelivered orders: {orders}\nWallet: *{balance} ETB*",
+      "👤 *Your profile*\n\nName: {first} {last}\nUsername: @{username}\nID: `{id}`\nMember since: {since}\nDelivered orders: {orders}\nWallet: {balance} ETB*",
       {
         first: ctx.from?.first_name ?? "", last: ctx.from?.last_name ?? "",
         username: ctx.from?.username ?? "—", id: ctx.from?.id,
