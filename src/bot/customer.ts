@@ -66,7 +66,7 @@ async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string,
 export function registerCustomer(bot: Bot<BotCtx>) {
   bot.command("start", async (ctx) => {
   const loading = await ctx.reply(
-  '<tg-emoji emoji-id="5350427505805238170">✍️</tg-emoji>',
+  '<tg-emoji emoji-id="5386367538735104399">⌛</tg-emoji>',
   {
     parse_mode: "HTML",
   },
