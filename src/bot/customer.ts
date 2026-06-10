@@ -65,17 +65,34 @@ async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string,
 }
 export function registerCustomer(bot: Bot<BotCtx>) {
   bot.command("start", async (ctx) => {
+  const loading = await ctx.reply("⏳ Loading menu…");
+  
+  try {
     const refId = parseStartPayload(ctx.message?.text);
+    
     if (refId && ctx.from && refId !== ctx.from.id) {
-      try { await attachReferrer(ctx.from.id, refId); } catch (e) { console.error("[attachReferrer]", e); }
+      try {
+        await attachReferrer(ctx.from.id, refId);
+      } catch (e) {
+        console.error("[attachReferrer]", e);
+      }
     }
+    
     const kb = await dynamicMainMenu(ctx.isAdmin);
+    
     await tReply(ctx, "welcome", "🔥 NEW SERVER TEST {first_name}!", {
       first_name: ctx.from?.first_name ?? "",
       username: ctx.from?.username ?? "",
       telegram_id: ctx.from?.id ?? "",
     }, { reply_markup: kb });
-  });
+  } finally {
+    try {
+      await ctx.api.deleteMessage(ctx.chat!.id, loading.message_id);
+    } catch {
+      // ignore if Telegram cannot delete it
+    }
+  }
+});
 
   const guideText =
     "📖 *Bot Guide*\n\n" +
