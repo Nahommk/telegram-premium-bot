@@ -333,30 +333,15 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     await setState(ctx.from!.id, { admin: "wallet_adjust_user" });
     await tA(ctx, "wallet_adjust_user_prompt", "Send the user's telegram ID to adjust wallet:");
   });
-async function ensureAdminEditableTemplates() {
-  const rows = [
-    {
-      key: "notify_wallet_deposit_verified",
-      body: "💼 *Wallet deposit verified*\n\nUser: `{user_id}`\nReference: `{reference}`\nAmount: *{amount} ETB*\nNew balance: {balance} ETB",
-    },
-    {
-      key: "notify_product_payment_verified",
-      body: "💰 *Product payment verified*\n\nOrder: `{order}`\nUser: `{user_id}`\nReference: `{reference}`\nAmount: *{amount} ETB*\nStatus: *{status}*",
-    },
-    {
-      key: "notify_product_delivered",
-      body: "✅ *Product delivered*\n\nOrder: `{order}`\nUser: `{user_id}`\nProduct: *{product}*",
-    },
-  ];
 
   await supabaseAdmin
     .from("message_templates")
     .upsert(rows, { onConflict: "key", ignoreDuplicates: true } as any);
 }
-  // ============ Templates ============
 // ============ Templates ============
 bot.callbackQuery("adm:t:list", async (ctx) => {
   if (!requireAdmin(ctx)) return;
+
   await ctx.answerCallbackQuery();
 
   const pinnedKeys = [
@@ -372,7 +357,9 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
     .limit(500);
 
   if (error) {
-    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
+    await tA(ctx, "generic_failed", "Failed: {error}", {
+      error: error.message,
+    });
     return;
   }
 
@@ -412,64 +399,17 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
     .maybeSingle();
 
   if (error) {
-    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
+    await tA(ctx, "generic_failed", "Failed: {error}", {
+      error: error.message,
+    });
     return;
   }
 
-  await setState(ctx.from!.id, { admin: "edit_template", key });
-
-  await tA(
-    ctx,
-    "edit_template_prompt",
-    "Current *{key}*:\n\n{body}\n\nSend the new body.",
-    {
-      key,
-      body: data?.body ?? "_empty_",
-    },
-  );
-});
-  for (const row of rows) {
-    await supabaseAdmin
-      .from("message_templates")
-      .upsert(row, { onConflict: "key" });
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("message_templates")
-    .select("key")
-    .order("key");
-
-  if (error) {
-    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
-    return;
-  }
-
-  const kb = new InlineKeyboard();
-
-  (data ?? []).forEach((t) => {
-    kb.text(t.key, `adm:t:edit:${t.key}`).row();
+  await setState(ctx.from!.id, {
+    admin: "edit_template",
+    key,
   });
 
-  kb.text(await getMessageTemplate("admin_btn_admin", "⬅️ Admin"), "admin:menu");
-
-  await tAEdit(ctx, "templates_header", "📝 *Templates*", {}, { reply_markup: kb });
-});
-
-bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
-  if (!requireAdmin(ctx)) return;
-
-  const key = ctx.match![1];
-
-  await ctx.answerCallbackQuery();
-
-  const { data } = await supabaseAdmin
-    .from("message_templates")
-    .select("body")
-    .eq("key", key)
-    .maybeSingle();
-
-  await setState(ctx.from!.id, { admin: "edit_template", key });
-
   await tA(
     ctx,
     "edit_template_prompt",
@@ -480,7 +420,6 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
     },
   );
 });
-
   // ============ Buttons editor ============
   bot.callbackQuery("adm:btn:list", async (ctx) => {
     if (!requireAdmin(ctx)) return;
