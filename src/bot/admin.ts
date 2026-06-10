@@ -380,6 +380,32 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
       key: "notify_product_delivered",
       body: "✅ *Product delivered*\n\nOrder: `{order}`\nUser: `{user_id}`\nProduct: *{product}*",
     },
+    {
+  key: "welcome",
+  body: "🔥 NEW SERVER TEST {first_name}!",
+},
+{
+  key: "payment_instruction_telebirr",
+  body:
+    "💳 *Payment — Telebirr*\n\n" +
+    "Order: *{short_id}*\n" +
+    "Amount: *{total} ETB*\n\n" +
+    "Send exactly *{total} ETB* to:\n" +
+    "📱 `{account}`\n" +
+    "👤 *{account_name}*\n\n" +
+    "Then send the transaction reference here.",
+},
+{
+  key: "payment_instruction_cbe",
+  body:
+    "💳 *Payment — CBE*\n\n" +
+    "Order: *{short_id}*\n" +
+    "Amount: *{total} ETB*\n\n" +
+    "Send exactly *{total} ETB* to:\n" +
+    "🏦 `{account}`\n" +
+    "👤 *{account_name}*\n\n" +
+    "Then send the FT reference here.",
+},
   ];
 
   for (const row of rows) {
