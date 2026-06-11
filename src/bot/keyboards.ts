@@ -53,27 +53,43 @@ export async function backToMenuKeyboard(): Promise<PremiumKeyboard> {
 }
 
 export async function productListKeyboard(
-  products: { id: string; name: string; icon: string; price_cents: number; in_stock?: boolean }[],
-  page: number,
-  pageSize: number,
-  total: number,
-): Promise<PremiumKeyboard> {
+    products: {
+      id: string;
+      name: string;
+      icon: string;
+      price_cents: number;
+      delivery_mode ? : "automatic" | "manual";
+      stock_left ? : number | null;
+      in_stock ? : boolean;
+    } [],
+    page: number,
+    pageSize: number,
+    total: number,
+  ): Promise < PremiumKeyboard > {
   const rows: PremiumButton[][] = [];
 
   for (const p of products) {
-    rows.push([
-      {
-        text: /^\d{8,}$/.test(String(p.icon || ""))
-  ? `${p.name} — ${(p.price_cents / 100).toFixed(2)} ETB`
-  : `${stripEmojiTags(String(p.icon || ""))} ${p.name} — ${(p.price_cents / 100).toFixed(2)} ETB`.trim(),
-callback_data: `shop:p:${p.id}`,
-style: p.in_stock === false ? "danger" : "success",
-...(/^\d{8,}$/.test(String(p.icon || ""))
-  ? { icon_custom_emoji_id: String(p.icon) }
-  : {}),
-      },
-    ]);
-  }
+  const hasPremiumIcon = /^\d{8,}$/.test(String(p.icon || ""));
+  const price = `${(p.price_cents / 100).toFixed(2)} ETB`;
+
+  const stockBadge =
+    p.delivery_mode === "manual"
+      ? "👤 Manual"
+      : `⚡ ${p.stock_left ?? 0} left`;
+
+  const textWithoutIcon = `${p.name} — ${price} — ${stockBadge}`;
+
+  rows.push([
+    {
+      text: hasPremiumIcon
+        ? textWithoutIcon
+        : `${stripEmojiTags(String(p.icon || ""))} ${textWithoutIcon}`.trim(),
+      callback_data: `shop:p:${p.id}`,
+      style: p.in_stock === false ? "danger" : "success",
+      ...(hasPremiumIcon ? { icon_custom_emoji_id: String(p.icon) } : {}),
+    },
+  ]);
+}
 
   const maxPage = Math.max(0, Math.ceil(total / pageSize) - 1);
   const nav: PremiumButton[] = [];

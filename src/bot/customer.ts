@@ -133,20 +133,41 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       await tEdit(ctx, "shop_empty", "🛒 No products available right now.", {}, { reply_markup: await backToMenuKeyboard() });
       return;
     }
-    // Compute in_stock per product (manual delivery is always considered in stock)
-    const autoIds = products.filter((p: any) => p.delivery_mode === "automatic").map((p: any) => p.id);
-    const stockMap = new Map<string, boolean>();
-    if (autoIds.length) {
-      const { data: codes } = await supabaseAdmin
-        .from("product_codes").select("product_id")
-        .in("product_id", autoIds).eq("is_used", false);
-      for (const id of autoIds) stockMap.set(id, false);
-      for (const row of (codes ?? []) as Array<{ product_id: string }>) stockMap.set(row.product_id, true);
-    }
-    const enriched = products.map((p: any) => ({
-      ...p,
-      in_stock: p.delivery_mode === "automatic" ? (stockMap.get(p.id) ?? false) : true,
-    }));
+    // Compute stock per product.
+// Automatic delivery shows exact unused code count.
+// Manual delivery is always available and shows manual emoji.
+const autoIds = products
+  .filter((p: any) => p.delivery_mode === "automatic")
+  .map((p: any) => p.id);
+
+const stockMap = new Map<string, number>();
+
+if (autoIds.length) {
+  const { data: codes } = await supabaseAdmin
+    .from("product_codes")
+    .select("product_id")
+    .in("product_id", autoIds)
+    .eq("is_used", false);
+
+  for (const id of autoIds) stockMap.set(id, 0);
+
+  for (const row of (codes ?? []) as Array<{ product_id: string }>) {
+    stockMap.set(row.product_id, (stockMap.get(row.product_id) ?? 0) + 1);
+  }
+}
+
+const enriched = products.map((p: any) => {
+  const stockLeft =
+    p.delivery_mode === "automatic"
+      ? stockMap.get(p.id) ?? 0
+      : null;
+
+  return {
+    ...p,
+    stock_left: stockLeft,
+    in_stock: p.delivery_mode === "automatic" ? stockLeft > 0 : true,
+  };
+});
     await tEdit(ctx, "shop_header", "🛒 *Shop* — pick a product:", {}, {
       reply_markup: await productListKeyboard(enriched, page, PAGE_SIZE, count ?? products.length),
     });
