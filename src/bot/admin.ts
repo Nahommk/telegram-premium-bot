@@ -346,6 +346,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "payment_instruction_cbe",
   "wallet_deposit_method_prompt",
   "wallet_home",
+  "product_detail",
 ];
 
   const { data, error } = await supabaseAdmin
