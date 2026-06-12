@@ -271,9 +271,13 @@ await ctx.editMessageText(productText, {
       const result = await payOrderFromWallet(orderId, ctx.from!.id);
       await setUserState(ctx.from!.id, null);
       if (result.delivery_mode === "manual") {
-        await tReply(ctx, "wallet_pay_manual",
-          "✅ *Order {short_id} paid from wallet.*\n\nYour payment was verified. Your order is waiting for manual delivery by admin.",
-          { short_id: result.short_id }, { reply_markup: await backToMenuKeyboard() });
+        await tReply(
+  ctx,
+  "wallet_pay_manual",
+  "✅ *Order {short_id} paid from wallet.*\n\nYour payment was verified. Your order is waiting for manual delivery by admin.",
+  { short_id: result.short_id },
+  { reply_markup: await backToMenuKeyboard() }
+);
         await notifyAdminsManualDelivery(getBot(), orderId);
       } else {
         await tReply(ctx, "delivery", "Delivered. Code: {code}",
