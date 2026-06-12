@@ -845,30 +845,60 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         if (o.manual_delivery_status === "delivered") { await tA(ctx, "order_already_delivered", "Already delivered."); await setState(ctx.from!.id, null); return; }
 
         const userId = Number(o.user_telegram_id);
-        const header = await tReply(
-  ctx,
-  "delivery_completed",
-  "🎉 *Delivery for {short_id}*\n\n{content}",
-  {
-    short_id: order.short_id,
-    content,
-  }
-);
         try {
-          if (ctx.message?.text) {
-            await ctx.api.sendMessage(userId, header + ctx.message.text, { parse_mode: "Markdown" });
-            await markManuallyDelivered(orderId, ctx.from!.id, "text", ctx.message.text.slice(0, 500));
-          } else if (ctx.message?.photo?.length) {
-            const ph = ctx.message.photo[ctx.message.photo.length - 1];
-            await ctx.api.sendPhoto(userId, ph.file_id, {
-              caption: header + (ctx.message.caption ?? ""), parse_mode: "Markdown",
-            });
-            await markManuallyDelivered(orderId, ctx.from!.id, "photo");
-          } else if (ctx.message?.document) {
-            await ctx.api.sendDocument(userId, ctx.message.document.file_id, {
-              caption: header + (ctx.message.caption ?? ""), parse_mode: "Markdown",
-            });
-            await markManuallyDelivered(orderId, ctx.from!.id, "document");
+  if (ctx.message?.text) {
+    const body = await renderMessage(
+      "delivery_completed",
+      "🎉 *Delivery for {short}*\n\n{content}",
+      {
+        short: o.short_id,
+        content: ctx.message.text,
+      }
+    );
+    
+    await ctx.api.sendMessage(userId, body, { parse_mode: "Markdown" });
+    await markManuallyDelivered(orderId, ctx.from!.id, "text", ctx.message.text.slice(0, 500));
+    
+  } else if (ctx.message?.photo?.length) {
+    const ph = ctx.message.photo[ctx.message.photo.length - 1];
+    
+    const caption = await renderMessage(
+      "delivery_completed",
+      "🎉 *Delivery for {short}*\n\n{content}",
+      {
+        short: o.short_id,
+        content: ctx.message.caption ?? "",
+      }
+    );
+    
+    await ctx.api.sendPhoto(userId, ph.file_id, {
+      caption,
+      parse_mode: "Markdown",
+    });
+    
+    await markManuallyDelivered(orderId, ctx.from!.id, "photo");
+    
+  } else if (ctx.message?.document) {
+    const caption = await renderMessage(
+      "delivery_completed",
+      "🎉 *Delivery for {short}*\n\n{content}",
+      {
+        short: o.short_id,
+        content: ctx.message.caption ?? "",
+      }
+    );
+    
+    await ctx.api.sendDocument(userId, ctx.message.document.file_id, {
+      caption,
+      parse_mode: "Markdown",
+    });
+    
+    await markManuallyDelivered(orderId, ctx.from!.id, "document");
+    
+  } else {
+    await tA(ctx, "manual_deliver_unsupported", "Unsupported content type. Send text, photo, or document.");
+    return;
+  }
           } else {
             await tA(ctx, "manual_deliver_unsupported", "Unsupported content type. Send text, photo, or document.");
             return;
