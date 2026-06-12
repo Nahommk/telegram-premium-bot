@@ -837,79 +837,117 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         return;
       }
       case "manual_deliver_send": {
-        const orderId = state.order_id as string;
-        const { data: o } = await supabaseAdmin
-          .from("orders").select("user_telegram_id, short_id, status, manual_delivery_status")
-          .eq("id", orderId).maybeSingle();
-        if (!o) { await tA(ctx, "order_missing", "Order missing."); await setState(ctx.from!.id, null); return; }
-        if (o.manual_delivery_status === "delivered") { await tA(ctx, "order_already_delivered", "Already delivered."); await setState(ctx.from!.id, null); return; }
-
-        const userId = Number(o.user_telegram_id);
-        try {
-  if (ctx.message?.text) {
-    const body = await renderMessage(
-      "delivery_completed",
-      "🎉 *Delivery for {short}*\n\n{content}",
-      {
-        short: o.short_id,
-        content: ctx.message.text,
-      }
-    );
-    
-    await ctx.api.sendMessage(userId, body, { parse_mode: "Markdown" });
-    await markManuallyDelivered(orderId, ctx.from!.id, "text", ctx.message.text.slice(0, 500));
-    
-  } else if (ctx.message?.photo?.length) {
-    const ph = ctx.message.photo[ctx.message.photo.length - 1];
-    
-    const caption = await renderMessage(
-      "delivery_completed",
-      "🎉 *Delivery for {short}*\n\n{content}",
-      {
-        short: o.short_id,
-        content: ctx.message.caption ?? "",
-      }
-    );
-    
-    await ctx.api.sendPhoto(userId, ph.file_id, {
-      caption,
-      parse_mode: "Markdown",
-    });
-    
-    await markManuallyDelivered(orderId, ctx.from!.id, "photo");
-    
-  } else if (ctx.message?.document) {
-    const caption = await renderMessage(
-      "delivery_completed",
-      "🎉 *Delivery for {short}*\n\n{content}",
-      {
-        short: o.short_id,
-        content: ctx.message.caption ?? "",
-      }
-    );
-    
-    await ctx.api.sendDocument(userId, ctx.message.document.file_id, {
-      caption,
-      parse_mode: "Markdown",
-    });
-    
-    await markManuallyDelivered(orderId, ctx.from!.id, "document");
-    
-  } else {
-    await tA(ctx, "manual_deliver_unsupported", "Unsupported content type. Send text, photo, or document.");
+  const orderId = state.order_id as string;
+  
+  const { data: o } = await supabaseAdmin
+  .from("orders")
+  .select("user_telegram_id, short_id, status, manual_delivery_status")
+  .eq("id", orderId)
+  .maybeSingle();
+  
+  if (!o) {
+    await tA(ctx, "order_missing", "Order missing.");
+    await setState(ctx.from!.id, null);
     return;
   }
-          } else {
-            await tA(ctx, "manual_deliver_unsupported", "Unsupported content type. Send text, photo, or document.");
-            return;
-          }
-          await setState(ctx.from!.id, null);
-          await tA(ctx, "manual_deliver_done", "✅ Delivered {short} to user.", { short: o.short_id });
-        } catch (e: any) {
-          await tA(ctx, "generic_failed", "Failed: {error}", { error: e?.message ?? e });
+  
+  if (o.manual_delivery_status === "delivered") {
+    await tA(ctx, "order_already_delivered", "Already delivered.");
+    await setState(ctx.from!.id, null);
+    return;
+  }
+  
+  const userId = Number(o.user_telegram_id);
+  
+  try {
+    if (ctx.message?.text) {
+      const body = await renderMessage(
+        "delivery_completed",
+        "🎉 *Delivery for {short}*\n\n{content}",
+        {
+          short: o.short_id,
+          content: ctx.message.text,
         }
-        return;
-      }
+      );
+      
+      await ctx.api.sendMessage(userId, body, {
+        parse_mode: "Markdown",
+      });
+      
+      await markManuallyDelivered(
+        orderId,
+        ctx.from!.id,
+        "text",
+        ctx.message.text.slice(0, 500)
+      );
+      
+    } else if (ctx.message?.photo?.length) {
+      const ph = ctx.message.photo[ctx.message.photo.length - 1];
+      
+      const caption = await renderMessage(
+        "delivery_completed",
+        "🎉 *Delivery for {short}*\n\n{content}",
+        {
+          short: o.short_id,
+          content: ctx.message.caption ?? "",
+        }
+      );
+      
+      await ctx.api.sendPhoto(userId, ph.file_id, {
+        caption,
+        parse_mode: "Markdown",
+      });
+      
+      await markManuallyDelivered(
+        orderId,
+        ctx.from!.id,
+        "photo"
+      );
+      
+    } else if (ctx.message?.document) {
+      const caption = await renderMessage(
+        "delivery_completed",
+        "🎉 *Delivery for {short}*\n\n{content}",
+        {
+          short: o.short_id,
+          content: ctx.message.caption ?? "",
+        }
+      );
+      
+      await ctx.api.sendDocument(userId, ctx.message.document.file_id, {
+        caption,
+        parse_mode: "Markdown",
+      });
+      
+      await markManuallyDelivered(
+        orderId,
+        ctx.from!.id,
+        "document"
+      );
+      
+    } else {
+      await tA(
+        ctx,
+        "manual_deliver_unsupported",
+        "Unsupported content type. Send text, photo, or document."
+      );
+      return;
+    }
+    
+    await setState(ctx.from!.id, null);
+    
+    await tA(ctx, "manual_deliver_done", "✅ Delivered {short} to user.", {
+      short: o.short_id,
+    });
+    
+  } catch (e: any) {
+    await tA(ctx, "generic_failed", "Failed: {error}", {
+      error: e?.message ?? e,
+    });
+  }
+  
+  return;
+}
       case "broadcast_text_body": {
         if (!text) return next();
         await setState(ctx.from!.id, null);
