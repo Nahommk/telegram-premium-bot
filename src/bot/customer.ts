@@ -206,26 +206,31 @@ const enriched = products.map((p: any) => {
   }
   
   const productIcon = /^\d{8,}$/.test(String(p.icon || "")) ?
-    `<tg-emoji emoji-id="${p.icon}">🎮</tg-emoji>` :
-    String(p.icon || "");
-  
-  const productText =
-    `${productIcon} <b>${p.name}</b>\n\n` +
-    `${p.description || "<i>No description</i>"}\n\n` +
-    `💵 Price: <b>${formatPrice(p.price_cents)} ETB</b> / unit\n` +
-    `🛡 Warranty: ${p.warranty_text || "—"}\n` +
-    `📦 Stock: ${stock}\n\n` +
-    `Pick a quantity:`;
-  
-  await ctx.editMessageText(productText, {
-    parse_mode: "HTML",
-    reply_markup: await quantityKeyboard(
-      p.id,
-      Array.isArray(p.quantity_presets) ?
-      (p.quantity_presets as number[]) :
-      [1, 2, 5, 10],
-    ),
-  });
+  `<tg-emoji emoji-id="${p.icon}">🎮</tg-emoji>` :
+  toHtml(String(p.icon || ""));
+
+const productText = await renderMessage(
+  "product_detail",
+  "{icon} <b>{name}</b>\n\n{description}\n\n💵 Price: <b>{price} ETB</b> / unit\n🛡 Warranty: {warranty}\n📦 Stock: {stock}\n\nPick a quantity:",
+  {
+    icon: productIcon,
+    name: toHtml(String(p.name || "")),
+    description: toHtml(String(p.description || "No description")),
+    price: formatPrice(p.price_cents),
+    warranty: toHtml(String(p.warranty_text || "—")),
+    stock: toHtml(String(stock || "—")),
+  },
+);
+
+await ctx.editMessageText(productText, {
+  parse_mode: "HTML",
+  reply_markup: await quantityKeyboard(
+    p.id,
+    Array.isArray(p.quantity_presets) ?
+    (p.quantity_presets as number[]) :
+    [1, 2, 5, 10],
+  ),
+});
 });
   bot.callbackQuery(/^shop:q:([^:]+):(\d+)$/, async (ctx) => {
     const productId = ctx.match![1];
@@ -864,9 +869,9 @@ async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: numb
 
   const balance = await getBalance(ctx.from!.id);
   await tReply(ctx, "order_created",
-    "🧾 *Order {short_id}*\n\n{name} × {qty} = *{total} ETB*\n\nChoose payment method:",
-    { short_id: order.short_id, name: p.name, qty, total: formatPrice(total) },
-    { reply_markup: await paymentMethodKeyboard(order.id, balance, total) });
+  "🧾 *Order {short_id}*\n\n{name} × {qty} = *{total} ETB*\n\nChoose payment method:",
+  { short_id: order.short_id, name: p.name, qty, total: formatPrice(total) },
+  { reply_markup: await paymentMethodKeyboard(order.id, balance, total) });
 }
 
 function methodLabel(m: "telebirr" | "cbe") {

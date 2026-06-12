@@ -342,6 +342,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
 
   const pinnedKeys = [
   "welcome",
+  "order_created",
   "payment_instruction_telebirr",
   "payment_instruction_cbe",
   "wallet_deposit_method_prompt",
