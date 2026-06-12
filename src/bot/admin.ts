@@ -344,6 +344,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "welcome",
   "order_created",
   "wallet_pay_manual",
+  "delivery_completed",
   "payment_instruction_telebirr",
   "payment_instruction_cbe",
   "wallet_deposit_method_prompt",
@@ -844,8 +845,15 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         if (o.manual_delivery_status === "delivered") { await tA(ctx, "order_already_delivered", "Already delivered."); await setState(ctx.from!.id, null); return; }
 
         const userId = Number(o.user_telegram_id);
-        const header = await renderMessage("admin_manual_deliver_header",
-          "🎉 *Delivery for {short}*\n\n", { short: o.short_id });
+        const header = await tReply(
+  ctx,
+  "delivery_completed",
+  "🎉 *Delivery for {short_id}*\n\n{content}",
+  {
+    short_id: order.short_id,
+    content,
+  }
+);
         try {
           if (ctx.message?.text) {
             await ctx.api.sendMessage(userId, header + ctx.message.text, { parse_mode: "Markdown" });
