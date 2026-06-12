@@ -344,6 +344,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "welcome",
   "order_created",
   "wallet_pay_manual",
+  "delivery",
   "delivery_completed",
   "payment_instruction_telebirr",
   "payment_instruction_cbe",
