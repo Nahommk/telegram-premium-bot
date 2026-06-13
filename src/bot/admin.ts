@@ -10,7 +10,7 @@ import { createBroadcast, cancelBroadcast, runUntilDrained } from "@/services/br
 import { invalidateButtonsCache, loadButtons } from "@/services/buttons";
 import { getStats } from "@/services/stats";
 import { getBot } from "./bot";
-import { tReply, tEdit, tSend, encodeCustomEmoji } from "./messaging";
+import { tReply, tEdit, tSend, encodeCustomEmoji, toHtml } from "./messaging";
 import { getMessageTemplate, renderMessage } from "@/services/templates";
 
 async function getState(telegramId: number): Promise<Record<string, any> | null> {
@@ -867,13 +867,16 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         "🎉 *Delivery for {short}*\n\n{content}",
         {
           short: o.short_id,
-          content: ctx.message.text,
+          content: encodeCustomEmoji(
+  ctx.message.text,
+  ctx.message.entities as any
+),
         }
       );
       
-      await ctx.api.sendMessage(userId, body, {
-        parse_mode: "Markdown",
-      });
+      await ctx.api.sendMessage(userId, toHtml(body), {
+  parse_mode: "HTML",
+});
       
       await markManuallyDelivered(
         orderId,
@@ -890,7 +893,7 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         "🎉 *Delivery for {short}*\n\n{content}",
         {
           short: o.short_id,
-          content: ctx.message.caption ?? "",
+          content: encodeCustomEmoji(   ctx.message.caption ?? "",   ctx.message.caption_entities as any ),
         }
       );
       
@@ -911,14 +914,14 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         "🎉 *Delivery for {short}*\n\n{content}",
         {
           short: o.short_id,
-          content: ctx.message.caption ?? "",
+          content: encodeCustomEmoji(   ctx.message.caption ?? "",   ctx.message.caption_entities as any ),
         }
       );
       
       await ctx.api.sendDocument(userId, ctx.message.document.file_id, {
-        caption,
-        parse_mode: "Markdown",
-      });
+  caption: toHtml(caption),
+  parse_mode: "HTML",
+});
       
       await markManuallyDelivered(
         orderId,
