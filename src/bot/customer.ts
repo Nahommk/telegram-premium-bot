@@ -48,6 +48,49 @@ function premiumEmoji(id: string | null | undefined, fallback = "🔔") {
     : fallback;
 }
 
+function maskPublicId(value: unknown): string {
+  const s = String(value ?? "");
+  if (s.length <= 5) return s;
+  return `${s.slice(0, 3)}***${s.slice(-2)}`;
+}
+
+function publicProviderLabel(provider: PayoutProvider | string): string {
+  const p = String(provider || "").toLowerCase();
+
+  if (p === "telebirr") return "Telebirr Deposit";
+  if (p === "cbe") return "CBE Deposit";
+  if (p === "cbebirr") return "CBE Birr Deposit";
+  if (p === "mpesa") return "M-Pesa Deposit";
+  if (p === "dashen") return "Dashen Bank Deposit";
+  if (p === "abyssinia") return "Bank of Abyssinia Deposit";
+
+  return "Wallet Deposit";
+}
+
+async function notifyPurchaseChannel(ctx: BotCtx, orderId: string) {
+  const { data: o } = await supabaseAdmin
+    .from("orders")
+    .select("short_id, quantity, total_cents, products(name)")
+    .eq("id", orderId)
+    .maybeSingle() as any;
+
+  if (!o) return;
+
+  await notifyChannel(
+    ctx,
+    "channel_new_purchase",
+    "🎉 New Purchase!\n\n▪️ Service: {service}\n👤 By: ({user})\n🛍 Plan: {plan}\n🔖 Order No.: {short_id}\nQTY: {qty}\n📈 Total Purchase!: {total}",
+    {
+      service: o.products?.name ?? "Unknown",
+      user: maskPublicId(ctx.from?.id),
+      plan: o.products?.name ?? "Unknown",
+      short_id: o.short_id,
+      qty: o.quantity,
+      total: formatPrice(o.total_cents),
+    }
+  );
+}
+
 async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string, vars: Record<string, any>) {
   const chatId = process.env.NOTIFY_CHANNEL_ID;
   if (!chatId) return;
@@ -267,9 +310,10 @@ await ctx.editMessageText(productText, {
   bot.callbackQuery(/^pay:wallet:(.+)$/, async (ctx) => {
     const orderId = ctx.match![1];
     await ctx.answerCallbackQuery();
-    try {
-      const result = await payOrderFromWallet(orderId, ctx.from!.id);
-      await setUserState(ctx.from!.id, null);
+   try {
+  const result = await payOrderFromWallet(orderId, ctx.from!.id);
+  await notifyPurchaseChannel(ctx, orderId);
+  await setUserState(ctx.from!.id, null);
       if (result.delivery_mode === "manual") {
         await tReply(
   ctx,
@@ -607,7 +651,8 @@ async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, resu
   }
 
   if (result.status === "delivered") {
-    await setUserState(ctx.from!.id, null);
+  await notifyPurchaseChannel(ctx, state.order_id);
+  await setUserState(ctx.from!.id, null);
     const { data: o } = await supabaseAdmin
       .from("orders").select("short_id, products(name, warranty_text)")
       .eq("id", state.order_id).maybeSingle() as any;
@@ -621,7 +666,8 @@ async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, resu
   }
 
   if (result.status === "waiting_manual") {
-    await setUserState(ctx.from!.id, null);
+  await notifyPurchaseChannel(ctx, state.order_id);
+  await setUserState(ctx.from!.id, null);
     await tReply(ctx, "payment_waiting_manual",
       "✅ Your payment was verified successfully.\n\nYour order *{short_id}* is waiting for manual delivery by admin. You will be notified here as soon as it's delivered.",
       { short_id: result.short_id ?? state.short_id },
@@ -752,13 +798,30 @@ async function handleWalletDepositVerification(
     const storedProvider: "telebirr" | "cbe" =
       (detectedProvider === "cbe" || detectedProvider === "cbebirr") ? "cbe" : "telebirr";
     const newBal = await depositFromVerified({
-      userId: ctx.from!.id,
-      reference,
-      provider: storedProvider,
-      amountCents: v.amount_cents,
-      raw: { detected_provider: detectedProvider, matched_provider: rc.matchedProvider, ...(v.raw as any) },
-    });
-    await setUserState(ctx.from!.id, null);
+  userId: ctx.from!.id,
+  reference,
+  provider: storedProvider,
+  amountCents: v.amount_cents,
+  raw: {
+    detected_provider: detectedProvider,
+    matched_provider: rc.matchedProvider,
+    ...(v.raw as any)
+  },
+});
+
+await notifyChannel(
+  ctx,
+  "channel_wallet_deposit_success",
+  "🎉 New Credits Added!\n\n👤 User: {user}\n💵 Amount: {amount} ETB\n💳 Method: {method}\n🔖 Reference: {reference}",
+  {
+    user: maskPublicId(ctx.from!.id),
+    amount: formatPrice(v.amount_cents),
+    method: publicProviderLabel(detectedProvider),
+    reference,
+  }
+);
+
+await setUserState(ctx.from!.id, null);
     await tReply(ctx, "wallet_deposit_success",
       "✅ Deposited {amount} ETB. New balance: *{balance} ETB*.",
       { reference, amount: formatPrice(v.amount_cents), balance: formatPrice(newBal) },
@@ -871,7 +934,20 @@ async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: numb
 
   await stampOrderReferrer(order.id, ctx.from!.id);
 
-  const balance = await getBalance(ctx.from!.id);
+await notifyChannel(
+  ctx,
+  "channel_order_pending",
+  "🧾 New Pending Order!\n\n👤 By: ({user})\n📦 Plan: {plan}\n🔖 Order Code: {short_id}\nQTY: {qty}\n💵 Total: {total} ETB\n⏳ Status: Pending Payment",
+  {
+    user: maskPublicId(ctx.from!.id),
+    plan: p.name,
+    short_id: order.short_id,
+    qty,
+    total: formatPrice(total),
+  }
+);
+
+const balance = await getBalance(ctx.from!.id);
   await tReply(ctx, "order_created",
   "🧾 *Order {short_id}*\n\n{name} × {qty} = *{total} ETB*\n\nChoose payment method:",
   { short_id: order.short_id, name: p.name, qty, total: formatPrice(total) },

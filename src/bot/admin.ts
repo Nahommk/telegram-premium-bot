@@ -346,6 +346,11 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "wallet_pay_manual",
   "delivery",
   "delivery_completed",
+  
+  "channel_order_pending",
+  "channel_new_purchase",
+  "channel_wallet_deposit_success",
+  
   "payment_instruction_telebirr",
   "payment_instruction_cbe",
   "wallet_deposit_method_prompt",
