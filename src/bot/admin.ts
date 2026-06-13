@@ -689,7 +689,10 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
       case "add_codes": {
         if (!text) return next();
         const id = state.product_id as string;
-        const codes = text.split("\n").map((c) => c.trim()).filter(Boolean);
+        const codes = text
+  .split(/\n\s*\n/g)
+  .map((c) => c.trim())
+  .filter(Boolean);
         if (codes.length === 0) { await tA(ctx, "add_codes_empty", "No codes."); return; }
         const { error } = await supabaseAdmin.from("product_codes").insert(
           codes.map((code) => ({ product_id: id, code })),
