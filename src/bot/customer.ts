@@ -54,6 +54,18 @@ function maskPublicId(value: unknown): string {
   return `${s.slice(0, 3)}***${s.slice(-2)}`;
 }
 
+function maskCode(value: unknown): string {
+  const s = String(value ?? "");
+  if (s.length <= 6) return s;
+  return `${s.slice(0, 3)}***${s.slice(-2)}`;
+}
+
+function maskReference(value: unknown): string {
+  const s = String(value ?? "");
+  if (s.length <= 8) return s;
+  return `${s.slice(0, 4)}***${s.slice(-3)}`;
+}
+
 function publicProviderLabel(provider: PayoutProvider | string): string {
   const p = String(provider || "").toLowerCase();
 
@@ -84,7 +96,7 @@ async function notifyPurchaseChannel(ctx: BotCtx, orderId: string) {
       service: o.products?.name ?? "Unknown",
       user: maskPublicId(ctx.from?.id),
       plan: o.products?.name ?? "Unknown",
-      short_id: o.short_id,
+      short_id: maskCode(o.short_id),
       qty: o.quantity,
       total: formatPrice(o.total_cents),
     }
@@ -817,7 +829,7 @@ await notifyChannel(
     user: maskPublicId(ctx.from!.id),
     amount: formatPrice(v.amount_cents),
     method: publicProviderLabel(detectedProvider),
-    reference,
+    reference: maskReference(reference),
   }
 );
 
@@ -941,7 +953,7 @@ await notifyChannel(
   {
     user: maskPublicId(ctx.from!.id),
     plan: p.name,
-    short_id: order.short_id,
+    short_id: maskCode(order.short_id),
     qty,
     total: formatPrice(total),
   }
