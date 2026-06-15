@@ -87,11 +87,12 @@ async function broadcastStockToUsers(
     kind: "text",
     text,
     buttons: [
-      {
-        label: "🛒 Buy",
-        callback_data: `shop:p:${productId}`,
-      },
-    ],
+  {
+    label: "Buy",
+    callback_data: `shop:p:${productId}`,
+    icon_custom_emoji_id: "5312361253610475399",
+  },
+],
   });
 
   await runUntilDrained(getBot(), broadcastId);

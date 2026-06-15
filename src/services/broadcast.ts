@@ -12,6 +12,7 @@ export interface BroadcastInput {
     label: string;
     url ? : string;
     callback_data ? : string;
+    icon_custom_emoji_id?: string;
   } [];
 }
 
@@ -69,19 +70,27 @@ export async function processBatch(bot: Bot<BotCtx>, id: string, batchSize = 25)
 
   let sent = 0, failed = 0;
   const inline =
-  bc.buttons && Array.isArray(bc.buttons) && bc.buttons.length ?
-  {
-    inline_keyboard: [
-      (bc.buttons as any[]).map((b) => ({
-        text: b.label,
-        ...(b.url ?
-          { url: b.url } :
-          { callback_data: b.callback_data }),
-      })),
-    ],
-  } :
-  undefined;
+  bc.buttons && Array.isArray(bc.buttons) && bc.buttons.length
+    ? {
+        inline_keyboard: [
+          (bc.buttons as any[]).map((b) => {
+            const btn: any = {
+              text: b.label,
+              ...(b.url
+                ? { url: b.url }
+                : { callback_data: b.callback_data }),
+            };
 
+            if (b.icon_custom_emoji_id) {
+              btn.icon_custom_emoji_id = String(b.icon_custom_emoji_id);
+            }
+
+            return btn;
+          }),
+        ],
+      }
+    : undefined;
+    
   for (const t of targets as any[]) {
     const tid = Number(t.telegram_id);
     try {
