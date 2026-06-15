@@ -65,7 +65,14 @@ function maskReference(value: unknown): string {
   if (s.length <= 8) return s;
   return `${s.slice(0, 4)}***${s.slice(-3)}`;
 }
+function publicProductIcon(icon: unknown): string {
+  const raw = String(icon ?? "").trim();
 
+  if (!raw) return "";
+  if (/^\d{8,}$/.test(raw)) return premiumEmoji(raw, "⭐");
+
+  return raw;
+}
 function publicProviderLabel(provider: PayoutProvider | string): string {
   const p = String(provider || "").toLowerCase();
 
@@ -82,25 +89,26 @@ function publicProviderLabel(provider: PayoutProvider | string): string {
 async function notifyPurchaseChannel(ctx: BotCtx, orderId: string) {
   const { data: o } = await supabaseAdmin
     .from("orders")
-    .select("short_id, quantity, total_cents, products(name)")
+    .select("short_id, quantity, total_cents, products(name, icon)")
     .eq("id", orderId)
     .maybeSingle() as any;
 
   if (!o) return;
 
   await notifyChannel(
-    ctx,
-    "channel_new_purchase",
-    "🎉 New Purchase!\n\n▪️ Service: {service}\n👤 By: ({user})\n🛍 Plan: {plan}\n🔖 Order No.: {short_id}\nQTY: {qty}\n📈 Total Purchase!: {total}",
-    {
-      service: o.products?.name ?? "Unknown",
-      user: maskPublicId(ctx.from?.id),
-      plan: o.products?.name ?? "Unknown",
-      short_id: maskCode(o.short_id),
-      qty: o.quantity,
-      total: formatPrice(o.total_cents),
-    }
-  );
+  ctx,
+  "channel_new_purchase",
+  "🎉 New Purchase!\n\n▪️ Service: {icon} {service}\n👤 By: ({user})\n🛍 Plan: {icon} {plan}\n🔖 Order No.: {short_id}\nQTY: {qty}\n📈 Total Purchase!: {total}",
+  {
+    icon: publicProductIcon(o.products?.icon),
+    service: o.products?.name ?? "Unknown",
+    user: maskPublicId(ctx.from?.id),
+    plan: o.products?.name ?? "Unknown",
+    short_id: maskCode(o.short_id),
+    qty: o.quantity,
+    total: formatPrice(o.total_cents),
+  }
+);
 }
 
 async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string, vars: Record<string, any>) {
@@ -1019,7 +1027,7 @@ async function buildInstructions(
 async function showPaymentInstructions(ctx: BotCtx, orderId: string, method: "telebirr" | "cbe") {
   const { data: o } = await supabaseAdmin
     .from("orders")
-    .select("short_id, quantity, total_cents, products(name)")
+    .select("short_id, quantity, total_cents, products(name, icon)")
     .eq("id", orderId)
     .maybeSingle() as any;
   
