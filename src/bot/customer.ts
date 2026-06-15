@@ -88,17 +88,22 @@ function publicProviderLabel(provider: PayoutProvider | string): string {
 
 async function notifyPurchaseChannel(ctx: BotCtx, orderId: string) {
   const { data: o } = await supabaseAdmin
-    .from("orders")
-    .select("short_id, quantity, total_cents, products(name, icon)")
-    .eq("id", orderId)
-    .maybeSingle() as any;
+  .from("orders")
+  .select("short_id, quantity, total_cents, products(name, icon)")
+  .eq("id", orderId)
+  .maybeSingle() as any;
 
-  if (!o) return;
+if (!o) return;
+
+const { count: totalPurchases } = await supabaseAdmin
+  .from("orders")
+  .select("id", { count: "exact", head: true })
+  .in("status", ["delivered", "paid_waiting_delivery"]);
 
   await notifyChannel(
   ctx,
   "channel_new_purchase",
-  "🎉 New Purchase!\n\n▪️ Service: {icon} {service}\n👤 By: ({user})\n🛍 Plan: {icon} {plan}\n🔖 Order No.: {short_id}\nQTY: {qty}\n📈 Total Purchase!: {total}",
+  "🎉 New Purchase!\n\n▪️ Service: {icon} {service}\n👤 By: ({user})\n🛍 Plan: {icon} {plan}\n🔖 Order No.: {short_id}\nQTY: {qty}\n💵 Amount: {amount} ETB\n📈 Total Purchases!: {total}",
   {
     icon: publicProductIcon(o.products?.icon),
     service: o.products?.name ?? "Unknown",
@@ -106,7 +111,8 @@ async function notifyPurchaseChannel(ctx: BotCtx, orderId: string) {
     plan: o.products?.name ?? "Unknown",
     short_id: maskCode(o.short_id),
     qty: o.quantity,
-    total: formatPrice(o.total_cents),
+    amount: formatPrice(o.total_cents),
+    total: String(totalPurchases ?? 0),
   }
 );
 }
@@ -925,7 +931,7 @@ async function askDepositMethod(ctx: BotCtx, amount: number) {
 
 async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: number) {
   const { data: p } = await supabaseAdmin
-    .from("products").select("id, name, price_cents, is_enabled, delivery_mode")
+    .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode")
     .eq("id", productId).maybeSingle();
   if (!p || !p.is_enabled) {
     await tReply(ctx, "product_unavailable_inline", "Product unavailable.");
