@@ -676,8 +676,20 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
         const field = state.field as string; const id = state.product_id as string;
         const update: any = {};
         if (field === "name") update.name = text;
-        else if (field === "desc") update.description = text;
-        else if (field === "warranty") update.warranty_text = text;
+
+else if (field === "desc") {
+  update.description = encodeCustomEmoji(
+    ctx.message?.text ?? text,
+    ctx.message?.entities as any
+  ).trim();
+}
+
+else if (field === "warranty") {
+  update.warranty_text = encodeCustomEmoji(
+    ctx.message?.text ?? text,
+    ctx.message?.entities as any
+  ).trim();
+}
         else if (field === "icon") {   const customEmoji = ctx.message?.entities?.find(     (e: any) => e.type === "custom_emoji",   ) as any;    update.icon = customEmoji?.custom_emoji_id     ? String(customEmoji.custom_emoji_id)     : text.trim(); }
         else if (field === "price") {
           const n = parseFloat(text);
@@ -961,23 +973,49 @@ bot.callbackQuery(/^adm:t:edit:(.+)$/, async (ctx) => {
   return;
 }
       case "broadcast_text_body": {
-        if (!text) return next();
-        await setState(ctx.from!.id, null);
-        const id = await createBroadcast({ adminId: ctx.from!.id, kind: "text", text });
-        await previewBroadcast(ctx, id, text);
-        return;
-      }
+  if (!text) return next();
+  
+  const body = encodeCustomEmoji(
+    ctx.message?.text ?? text,
+    ctx.message?.entities as any
+  ).trim();
+  
+  await setState(ctx.from!.id, null);
+  
+  const id = await createBroadcast({
+    adminId: ctx.from!.id,
+    kind: "text",
+    text: body,
+  });
+  
+  await previewBroadcast(ctx, id, body);
+  return;
+}
       case "broadcast_photo_image": {
-        if (!ctx.message?.photo?.length) { await tA(ctx, "broadcast_photo_invalid", "Send a photo (with optional caption)."); return; }
-        const ph = ctx.message.photo[ctx.message.photo.length - 1];
-        await setState(ctx.from!.id, null);
-        const id = await createBroadcast({
-          adminId: ctx.from!.id, kind: "photo",
-          photoFileId: ph.file_id, text: ctx.message.caption ?? "",
-        });
-        await previewBroadcast(ctx, id, ctx.message.caption ?? "(photo)");
-        return;
-      }
+  if (!ctx.message?.photo?.length) {
+    await tA(ctx, "broadcast_photo_invalid", "Send a photo (with optional caption).");
+    return;
+  }
+
+  const ph = ctx.message.photo[ctx.message.photo.length - 1];
+
+  const caption = encodeCustomEmoji(
+    ctx.message.caption ?? "",
+    ctx.message.caption_entities as any
+  ).trim();
+
+  await setState(ctx.from!.id, null);
+
+  const id = await createBroadcast({
+    adminId: ctx.from!.id,
+    kind: "photo",
+    photoFileId: ph.file_id,
+    text: caption,
+  });
+
+  await previewBroadcast(ctx, id, caption || "(photo)");
+  return;
+}
     }
     return next();
   });

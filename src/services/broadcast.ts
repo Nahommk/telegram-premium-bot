@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Bot } from "grammy";
 import type { BotCtx } from "@/bot/bot";
+import { toHtml } from "@/bot/messaging";
 
 export interface BroadcastInput {
   adminId: number;
@@ -70,14 +71,21 @@ export async function processBatch(bot: Bot<BotCtx>, id: string, batchSize = 25)
   for (const t of targets as any[]) {
     const tid = Number(t.telegram_id);
     try {
-      if (bc.kind === "photo" && bc.photo_file_id) {
-        await bot.api.sendPhoto(tid, bc.photo_file_id, {
-          caption: bc.text ?? undefined,
-          reply_markup: inline,
-        });
-      } else {
-        await bot.api.sendMessage(tid, bc.text ?? "", { reply_markup: inline });
-      }
+      const htmlText = toHtml(String(bc.text ?? ""));
+
+if (bc.kind === "photo" && bc.photo_file_id) {
+  await bot.api.sendPhoto(tid, bc.photo_file_id, {
+    caption: htmlText || undefined,
+    parse_mode: htmlText ? "HTML" : undefined,
+    reply_markup: inline,
+  });
+} else {
+  await bot.api.sendMessage(tid, htmlText, {
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    reply_markup: inline,
+  });
+}
       await supabaseAdmin.from("broadcast_targets").update({
         status: "sent", sent_at: new Date().toISOString(),
       }).eq("broadcast_id", id).eq("telegram_id", tid);
