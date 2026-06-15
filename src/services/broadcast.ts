@@ -6,9 +6,13 @@ import { toHtml } from "@/bot/messaging";
 export interface BroadcastInput {
   adminId: number;
   kind: "text" | "photo";
-  text?: string;
-  photoFileId?: string;
-  buttons?: { label: string; url: string }[];
+  text ? : string;
+  photoFileId ? : string;
+  buttons ? : {
+    label: string;
+    url ? : string;
+    callback_data ? : string;
+  } [];
 }
 
 export async function createBroadcast(input: BroadcastInput): Promise<string> {
@@ -64,15 +68,24 @@ export async function processBatch(bot: Bot<BotCtx>, id: string, batchSize = 25)
   }
 
   let sent = 0, failed = 0;
-  const inline = bc.buttons && Array.isArray(bc.buttons) && bc.buttons.length
-    ? { inline_keyboard: [(bc.buttons as any[]).map((b) => ({ text: b.label, url: b.url }))] }
-    : undefined;
+  const inline =
+  bc.buttons && Array.isArray(bc.buttons) && bc.buttons.length ?
+  {
+    inline_keyboard: [
+      (bc.buttons as any[]).map((b) => ({
+        text: b.label,
+        ...(b.url ?
+          { url: b.url } :
+          { callback_data: b.callback_data }),
+      })),
+    ],
+  } :
+  undefined;
 
   for (const t of targets as any[]) {
     const tid = Number(t.telegram_id);
     try {
       const htmlText = toHtml(String(bc.text ?? ""));
-
 if (bc.kind === "photo" && bc.photo_file_id) {
   await bot.api.sendPhoto(tid, bc.photo_file_id, {
     caption: htmlText || undefined,

@@ -30,6 +30,72 @@ async function audit(adminId: number, action: string, target: unknown) {
     admin_telegram_id: adminId, action, target: target as any,
   });
 }
+function broadcastProductIcon(icon: unknown): string {
+  const raw = String(icon ?? "").trim();
+
+  if (!raw) return "";
+
+  if (/^\d{8,}$/.test(raw)) {
+    return `<tg-emoji emoji-id="${raw}">🤖</tg-emoji>`;
+  }
+
+  return raw;
+}
+
+async function countAvailableStock(productId: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from("product_codes")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .eq("product_id", productId)
+    .eq("is_used", false);
+
+  return count ?? 0;
+}
+
+async function broadcastStockToUsers(
+  ctx: BotCtx,
+  productId: string,
+  added: number
+) {
+  const { data: p } = await supabaseAdmin
+    .from("products")
+    .select("id, name, icon, warranty_text")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (!p) return;
+
+  const currentStock = await countAvailableStock(productId);
+
+  const text = await renderMessage(
+    "broadcast_stock_added",
+    "{icon} {name} {warranty}\n➕ Added: {added}\n📦 Current stock: {stock}",
+    {
+      icon: broadcastProductIcon(p.icon),
+      name: p.name,
+      warranty: p.warranty_text ?? "",
+      added,
+      stock: currentStock,
+    }
+  );
+
+  const broadcastId = await createBroadcast({
+    adminId: ctx.from!.id,
+    kind: "text",
+    text,
+    buttons: [
+      {
+        label: "🛒 Buy",
+        callback_data: `shop:p:${productId}`,
+      },
+    ],
+  });
+
+  await runUntilDrained(getBot(), broadcastId);
+}
 function requireAdmin(ctx: BotCtx): boolean {
   if (!ctx.isAdmin) {
     ctx.answerCallbackQuery({ text: "Admin only", show_alert: true }).catch(() => {});
@@ -356,6 +422,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "wallet_deposit_method_prompt",
   "wallet_home",
   "product_detail",
+  "broadcast_stock_added",
 ];
 
   const { data, error } = await supabaseAdmin
@@ -715,10 +782,20 @@ else if (field === "warranty") {
           codes.map((code) => ({ product_id: id, code })),
         );
         if (error) { await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message }); return; }
-        await audit(ctx.from!.id, "stock.add", { id, count: codes.length });
-        await setState(ctx.from!.id, null);
-        await tA(ctx, "add_codes_done", "✅ Added {count} code(s).", { count: codes.length });
-        return;
+        await audit(ctx.from!.id, "stock.add", {
+  id,
+  count: codes.length,
+});
+
+await broadcastStockToUsers(ctx, id, codes.length);
+
+await setState(ctx.from!.id, null);
+
+await tA(ctx, "add_codes_done", "✅ Added {count} code(s).", {
+  count: codes.length,
+});
+
+return;
       }
       case "user_search": {
         if (!text) return next();
