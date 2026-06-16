@@ -417,10 +417,37 @@ await ctx.editMessageText(productText, {
 );
         await notifyAdminsManualDelivery(getBot(), orderId);
       } else {
-        await tReply(ctx, "delivery", "Delivered. Code: {code}",
-          { short_id: result.short_id, code: result.delivered_code ?? "" },
-          { reply_markup: await backToMenuKeyboard() });
+  const deliveredCode = String(
+    (result as any).code ??
+    (result as any).delivered_code ??
+    (result as any).content ??
+    ""
+  ).trim();
+
+  if (!deliveredCode) {
+    console.error("[wallet_delivery_empty_code]", { orderId, result });
+
+    await tReply(
+      ctx,
+      "delivery_empty_code",
+      "⚠️ Payment verified, but delivery code is empty. Please contact admin.",
+      {},
+      {
+        reply_markup: await backToMenuKeyboard(),
       }
+    );
+
+    return;
+  }
+
+  await tReply(ctx, "delivery", "Delivered.\nCode: {code}", {
+    short_id: result.short_id,
+    code: deliveredCode,
+    content: deliveredCode,
+  }, {
+    reply_markup: await backToMenuKeyboard()
+  });
+}
       try { await grantReward(orderId); } catch { /* noop */ }
     } catch (e: any) {
       const msg = e?.message || "";
@@ -758,11 +785,37 @@ async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, resu
     const { data: o } = await supabaseAdmin
       .from("orders").select("short_id, products(name, warranty_text)")
       .eq("id", state.order_id).maybeSingle() as any;
+      const deliveredCode = String(
+  (result as any).code ??
+  (result as any).delivered_code ??
+  (result as any).content ??
+  ""
+).trim();
+
+if (!deliveredCode) {
+  console.error("[payment_delivery_empty_code]", {
+    orderId: state.order_id,
+    result,
+  });
+
+  await tReply(
+    ctx,
+    "delivery_empty_code",
+    "⚠️ Payment verified, but delivery code is empty. Please contact admin.",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
+
+  return;
+}
     await tReply(ctx, "delivery", "Delivered. Code: {code}", {
       short_id: o?.short_id,
       product_name: o?.products?.name,
       warranty: o?.products?.warranty_text,
-      code: result.code,
+      code: deliveredCode,
+      content: deliveredCode,
     }, { reply_markup: await dynamicMainMenu(ctx.isAdmin) });
     return;
   }

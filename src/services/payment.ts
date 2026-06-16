@@ -255,7 +255,21 @@ async function finishVerifiedPayment(opts: {
   if (row?.delivery_mode === "manual") {
     return { status: "waiting_manual", short_id: row?.short_id, reference, amount_cents: v.amount_cents, tip_cents: tipCents };
   }
-  return { status: "delivered", code: row?.delivered_code, short_id: row?.short_id, reference, amount_cents: v.amount_cents, tip_cents: tipCents };
+  const deliveredCode =
+  row?.delivered_code ??
+  row?.code ??
+  row?.content ??
+  row?.delivery_code ??
+  "";
+
+return {
+  status: "delivered",
+  code: String(deliveredCode),
+  short_id: row?.short_id,
+  reference,
+  amount_cents: v.amount_cents,
+  tip_cents: tipCents,
+};
 }
 
 async function duplicateCheck(orderId: string, userTelegramId: number, reference: string): Promise<ProcessResult | null> {
