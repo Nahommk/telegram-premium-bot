@@ -275,3 +275,33 @@ export async function adminMenuKeyboard(): Promise<PremiumKeyboard> {
     ],
   };
 }
+export async function mainReplyKeyboard() {
+  const buttons = await loadButtons(false);
+
+  const getBtn = (key: string, fallbackLabel: string, fallbackEmoji: string) => {
+    const b = buttons.find((x) => x.key === key);
+
+    const label = stripEmojiTags(b?.label ?? fallbackLabel);
+    const emoji = stripEmojiTags(b?.emoji ?? fallbackEmoji);
+    const iconId = b?.icon_custom_emoji_id ? String(b.icon_custom_emoji_id) : undefined;
+
+    return {
+      text: iconId ? label : `${emoji} ${label}`.trim(),
+      ...(iconId ? { icon_custom_emoji_id: iconId } : {}),
+    };
+  };
+
+  return {
+    keyboard: [
+      [
+        getBtn("reply.shop", "Shop", "🛍"),
+        getBtn("reply.reviews", "Reviews", "⭐"),
+      ],
+      [
+        getBtn("reply.bot_log", "Bot Log", "📢"),
+      ],
+    ],
+    resize_keyboard: true,
+    is_persistent: true,
+  };
+}

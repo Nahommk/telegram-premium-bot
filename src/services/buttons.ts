@@ -36,6 +36,9 @@ const DEFAULT_BUTTONS: ButtonTpl[] = [
   { key: "btn_cbe", label: "CBE", emoji: "🏦", is_visible: true, sort_order: 1090 },
   { key: "btn_cancel", label: "Cancel", emoji: "❌", is_visible: true, sort_order: 1100 },
   { key: "btn_instructions", label: "Instructions again", emoji: "📋", is_visible: true, sort_order: 1110 },
+  { key: "reply.shop", label: "Shop", emoji: "🛍", is_visible: true, sort_order: 2000 },
+{ key: "reply.reviews", label: "Reviews", emoji: "⭐", is_visible: true, sort_order: 2010 },
+{ key: "reply.bot_log", label: "Bot Log", emoji: "📢", is_visible: true, sort_order: 2020 },
 ];
 
 async function ensureDefaultButtons() {

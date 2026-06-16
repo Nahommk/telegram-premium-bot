@@ -6,7 +6,7 @@ import {
   backToMenuKeyboard, productListKeyboard, quantityKeyboard,
   paymentMethodKeyboard, awaitingReferenceKeyboard, walletHomeKeyboard,
   depositAmountKeyboard, referralKeyboard, premiumBtn,
-} from "./keyboards";
+mainReplyKeyboard, } from "./keyboards";
 import { dynamicMainMenu } from "@/services/buttons";
 import { formatPrice, sha256Hex } from "./util";
 import {
@@ -158,7 +158,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       first_name: ctx.from?.first_name ?? "",
       username: ctx.from?.username ?? "",
       telegram_id: ctx.from?.id ?? "",
-    }, { reply_markup: kb });
+    }, { reply_markup: await mainReplyKeyboard() });
   } finally {
     try {
       await ctx.api.deleteMessage(ctx.chat!.id, loading.message_id);
