@@ -302,6 +302,6 @@ export async function mainReplyKeyboard() {
       ],
     ],
     resize_keyboard: true,
-    is_persistent: false,
+    is_persistent: true,
   };
 }
