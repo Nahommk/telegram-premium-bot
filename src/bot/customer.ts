@@ -132,6 +132,71 @@ async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string,
     console.error("[notifyChannel]", e);
   }
 }
+async function sendShopList(ctx: BotCtx, page = 0) {
+  const from = page * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  const { data: products, count } = await supabaseAdmin
+    .from("products")
+    .select("id, name, icon, price_cents, delivery_mode", {
+      count: "exact",
+    })
+    .eq("is_enabled", true)
+    .order("sort_order", {
+      ascending: true,
+    })
+    .order("created_at", {
+      ascending: true,
+    })
+    .range(from, to);
+
+  if (!products || products.length === 0) {
+    await tReply(ctx, "shop_empty", "🛒 No products available right now.", {}, {
+      reply_markup: await backToMenuKeyboard(),
+    });
+    return;
+  }
+
+  const autoIds = products
+    .filter((p: any) => p.delivery_mode === "automatic")
+    .map((p: any) => p.id);
+
+  const stockMap = new Map<string, number>();
+
+  if (autoIds.length) {
+    const { data: codes } = await supabaseAdmin
+      .from("product_codes")
+      .select("product_id")
+      .in("product_id", autoIds)
+      .eq("is_used", false);
+
+    for (const id of autoIds) stockMap.set(id, 0);
+
+    for (const row of (codes ?? []) as Array<{ product_id: string }>) {
+      stockMap.set(row.product_id, (stockMap.get(row.product_id) ?? 0) + 1);
+    }
+  }
+
+  const enriched = products.map((p: any) => {
+    const stockLeft =
+      p.delivery_mode === "automatic" ? stockMap.get(p.id) ?? 0 : null;
+
+    return {
+      ...p,
+      stock_left: stockLeft,
+      in_stock: p.delivery_mode === "automatic" ? stockLeft > 0 : true,
+    };
+  });
+
+  await tReply(ctx, "shop_header", "🛍 *Shop* — pick a product:", {}, {
+    reply_markup: await productListKeyboard(
+      enriched,
+      page,
+      PAGE_SIZE,
+      count ?? products.length
+    ),
+  });
+}
 export function registerCustomer(bot: Bot<BotCtx>) {
   bot.command("start", async (ctx) => {
   const loading = await ctx.reply(
@@ -158,7 +223,11 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       first_name: ctx.from?.first_name ?? "",
       username: ctx.from?.username ?? "",
       telegram_id: ctx.from?.id ?? "",
-    }, { reply_markup: await mainReplyKeyboard() });
+    }, { reply_markup: kb 
+    });
+    await ctx.reply("⌨️ Quick buttons enabled.", {
+  reply_markup: await mainReplyKeyboard(),
+});
   } finally {
     try {
       await ctx.api.deleteMessage(ctx.chat!.id, loading.message_id);
@@ -569,6 +638,15 @@ bot.callbackQuery(/^wallet:depMethod:(\d+(?:\.\d+)?):(telebirr|cbe)$/, async (ct
   bot.on("message:text", async (ctx, next) => {
     if (ctx.message.text.startsWith("/")) return next();
     const text = ctx.message.text.trim();
+    const cleanText = text
+  .replace(/[^\p{L}\p{N}\s]/gu, "")
+  .trim()
+  .toLowerCase();
+
+if (cleanText === "shop") {
+  await sendShopList(ctx, 0);
+  return;
+}
     const state = await getUserState(ctx.from!.id);
 
     if (state?.awaiting === "custom_qty") {
