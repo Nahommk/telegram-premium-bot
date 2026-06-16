@@ -58,13 +58,7 @@ export function getBot(): Bot<BotCtx> {
   registerCustomer(bot);
   registerAdmin(bot);
 
-  // Fallback (must be last)
-  bot.on("message", async (ctx) => {
-    const kb = await dynamicMainMenu(ctx.isAdmin);
-    await ctx.reply(await getMessageTemplate("fallback", "Use the menu below."), { reply_markup: kb });
-  });
-
-  bot.catch((err) => {
+    bot.catch((err) => {
     console.error("[bot error]", err.error);
   });
 
