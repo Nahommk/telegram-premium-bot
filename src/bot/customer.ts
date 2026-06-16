@@ -203,6 +203,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
   '<tg-emoji emoji-id="5386367538735104399">⌛</tg-emoji>',
   {
     parse_mode: "HTML",
+    reply_markup: await mainReplyKeyboard(),
   },
 );
   
@@ -225,9 +226,7 @@ export function registerCustomer(bot: Bot<BotCtx>) {
       telegram_id: ctx.from?.id ?? "",
     }, { reply_markup: kb 
     });
-    await ctx.reply("⌨️ Quick buttons enabled.", {
-  reply_markup: await mainReplyKeyboard(),
-});
+    
   } finally {
     try {
       await ctx.api.deleteMessage(ctx.chat!.id, loading.message_id);
