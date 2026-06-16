@@ -290,18 +290,3 @@ export async function mainReplyKeyboard() {
       ...(iconId ? { icon_custom_emoji_id: iconId } : {}),
     };
   };
-
-  return {
-    keyboard: [
-      [
-        getBtn("reply.shop", "Shop", "🛍"),
-        getBtn("reply.reviews", "Reviews", "⭐"),
-      ],
-      [
-        getBtn("reply.bot_log", "Bot Log", "📢"),
-      ],
-    ],
-    resize_keyboard: true,
-    is_persistent: true,
-  };
-}
