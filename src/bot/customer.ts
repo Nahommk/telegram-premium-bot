@@ -203,7 +203,6 @@ export function registerCustomer(bot: Bot<BotCtx>) {
   '<tg-emoji emoji-id="5386367538735104399">⌛</tg-emoji>',
   {
     parse_mode: "HTML",
-    reply_markup: await mainReplyKeyboard(),
   },
 );
   
