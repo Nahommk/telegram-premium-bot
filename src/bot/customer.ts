@@ -5,8 +5,7 @@ import type { BotCtx } from "./bot";
 import {
   backToMenuKeyboard, productListKeyboard, quantityKeyboard,
   paymentMethodKeyboard, awaitingReferenceKeyboard, walletHomeKeyboard,
-  depositAmountKeyboard, referralKeyboard, premiumBtn,
-mainReplyKeyboard, } from "./keyboards";
+  depositAmountKeyboard, referralKeyboard, premiumBtn, } from "./keyboards";
 import { dynamicMainMenu } from "@/services/buttons";
 import { formatPrice, sha256Hex } from "./util";
 import {
@@ -71,6 +70,14 @@ function publicProductIcon(icon: unknown): string {
   if (!raw) return "";
   if (/^\d{8,}$/.test(raw)) return premiumEmoji(raw, "⭐");
 
+  return raw;
+}
+function deliveryProductIcon(icon: unknown): string {
+  const raw = String(icon ?? "").trim();
+  if (!raw) return "";
+  if (/^\d{8,}$/.test(raw)) {
+    return `<tg-emoji emoji-id="${raw}">⭐</tg-emoji>`;
+  }
   return raw;
 }
 function publicProviderLabel(provider: PayoutProvider | string): string {
