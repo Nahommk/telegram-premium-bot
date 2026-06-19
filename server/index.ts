@@ -41,7 +41,9 @@ bot.api.setMyCommands([
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
-  app.get("/", (_req, res) => res.send("ok"));
+  app.get("/", (_req, res) => {
+  res.redirect("/admin/stats");
+});
   app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/admin/stats", async (req, res) => {
   const expected = process.env.STATS_DASHBOARD_SECRET;
