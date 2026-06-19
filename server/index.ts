@@ -42,21 +42,79 @@ bot.api.setMyCommands([
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/", (_req, res) => {
-  res.redirect("/admin/stats");
+  res.redirect("/stats");
 });
   app.get("/health", (_req, res) => res.json({ ok: true }));
-app.get("/admin/stats", async (req, res) => {
-  const expected = process.env.STATS_DASHBOARD_SECRET;
+app.get(["/stats", "/admin/stats"], async (req, res) => {
+  const expected = String(process.env.STATS_DASHBOARD_SECRET ?? "").trim();
+const key = String(req.query.key ?? "").trim();
 
-  if (!expected) {
-    return res.status(500).send("STATS_DASHBOARD_SECRET not set");
-  }
+if (!expected) {
+  return res.status(500).send("STATS_DASHBOARD_SECRET not set");
+}
 
-  const key = String(req.query.key ?? "");
+const cookieValue = `stats_auth=${encodeURIComponent(expected)}`;
+const cookieHeader = String(req.headers.cookie ?? "");
+const isAuthed = cookieHeader
+  .split(";")
+  .map((x) => x.trim())
+  .includes(cookieValue);
 
-  if (key !== expected) {
-    return res.status(401).send("unauthorized");
-  }
+if (!isAuthed && key !== expected) {
+  return res.send(`
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Stats Login</title>
+        <style>
+          body {
+            margin: 0;
+            height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #f6f5ef;
+            font-family: Arial, sans-serif;
+          }
+          form {
+            width: 320px;
+            background: #fff;
+            padding: 28px;
+            border: 1px solid #ddd8c8;
+            border-radius: 18px;
+          }
+          h2 {
+            margin-top: 0;
+          }
+          input, button {
+            width: 100%;
+            padding: 13px;
+            margin-top: 12px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+          }
+          button {
+            background: #111827;
+            color: white;
+            font-weight: bold;
+          }
+        </style>
+      </head>
+      <body>
+        <form method="GET" action="/stats">
+          <h2>Stats Login</h2>
+          <input name="key" type="password" placeholder="Dashboard password" />
+          <button type="submit">Open Stats</button>
+        </form>
+      </body>
+    </html>
+  `);
+}
+
+res.setHeader(
+  "Set-Cookie",
+  `${cookieValue}; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax`
+);
 
   const s = await getStats();
 
