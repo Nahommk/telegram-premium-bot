@@ -1,0 +1,16 @@
+name: Set Telegram Webhook
+
+on:
+  workflow_dispatch:
+
+jobs:
+  set-webhook:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set webhook
+        run: |
+          curl -X POST "https://nahom.info/api/telegram/setup" \
+            -H "Content-Type: application/json" \
+            -H "x-setup-secret: mySuperSecretWebhook12345" \
+            -d '{"url":"https://nahom.info/api/telegram/webhook"}'
