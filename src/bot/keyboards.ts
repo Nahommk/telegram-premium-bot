@@ -3,7 +3,7 @@ import { stripEmojiTags } from "@/bot/messaging";
 
 export { dynamicMainMenu };
 
-type BtnStyle = "primary" | "success" | "danger" | "black";
+type BtnStyle = "primary" | "success" | "danger";
 
 type PremiumButton = {
   text: string;

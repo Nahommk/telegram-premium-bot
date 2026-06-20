@@ -103,9 +103,9 @@ const URL_ENVS: Record<string, string> = {
   "menu.reviews": "REVIEW_GROUP_URL",
 };
 
-type BtnStyle = "primary" | "success" | "danger" | "black";
+type BtnStyle = "primary" | "success" | "danger";
 
-const STYLES: Record < string, BtnStyle > = {
+const STYLES: Partial<Record<string, BtnStyle>> = {
   "menu.shop": "primary",
   "menu.wallet": "success",
   "menu.profile": "primary",
@@ -114,9 +114,7 @@ const STYLES: Record < string, BtnStyle > = {
   "menu.referrals": "primary",
   "menu.support": "primary",
   
-  "menu.bot_logs": "primary",
-"menu.channel": "primary",
-"menu.reviews": "primary",
+  
   
   "menu.admin": "danger",
 };
@@ -154,7 +152,7 @@ if (!callback_data && !url) continue;
 current.push({
   text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
   ...(url ? { url } : { callback_data }),
-  style: STYLES[b.key],
+  ...(STYLES[b.key] ? { style: STYLES[b.key] } : {}),
   ...(b.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
 });
 
