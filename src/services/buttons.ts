@@ -114,9 +114,9 @@ const STYLES: Record < string, BtnStyle > = {
   "menu.referrals": "primary",
   "menu.support": "primary",
   
-  "menu.bot_logs": "black",
-  "menu.channel": "black",
-  "menu.reviews": "black",
+  "menu.bot_logs": "primary",
+"menu.channel": "primary",
+"menu.reviews": "primary",
   
   "menu.admin": "danger",
 };
@@ -142,7 +142,12 @@ export async function dynamicMainMenu(showAdmin: boolean): Promise<{ inline_keyb
     const callback_data = CALLBACKS[b.key];
 
 const urlEnv = URL_ENVS[b.key];
-const url = urlEnv ? process.env[urlEnv] : undefined;
+const rawUrl = urlEnv ? String(process.env[urlEnv] ?? "").trim() : "";
+const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : undefined;
+
+if (urlEnv && rawUrl && !url) {
+  console.error("[main_menu_bad_url]", b.key, rawUrl);
+}
 
 if (!callback_data && !url) continue;
 
