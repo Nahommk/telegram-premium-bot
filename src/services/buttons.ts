@@ -21,8 +21,13 @@ const DEFAULT_BUTTONS: ButtonTpl[] = [
   { key: "menu.wallet", label: "Wallet", emoji: "💼", is_visible: true, sort_order: 40 },
   { key: "menu.referrals", label: "Referrals", emoji: "🎁", is_visible: true, sort_order: 50 },
   { key: "menu.profile", label: "My Profile", emoji: "👤", is_visible: true, sort_order: 60 },
-  { key: "menu.support", label: "Support", emoji: "💬", is_visible: true, sort_order: 70 },
-  { key: "menu.admin", label: "Admin Panel", emoji: "🛠️", is_visible: true, sort_order: 100 },
+  { key: "menu.support", label: "Support", emoji: "", is_visible: true, sort_order: 70 },
+
+{ key: "menu.bot_logs", label: "Bot Logs", emoji: "", is_visible: true, sort_order: 80 },
+{ key: "menu.channel", label: "Channel", emoji: "", is_visible: true, sort_order: 90 },
+{ key: "menu.reviews", label: "Reviews", emoji: "⭐", is_visible: true, sort_order: 95 },
+
+{ key: "menu.admin", label: "Admin Panel", emoji: "️", is_visible: true, sort_order: 100 },
 
   { key: "btn_back", label: "Back", emoji: "⬅️", is_visible: true, sort_order: 1000 },
   { key: "btn_main_menu", label: "Main menu", emoji: "⬅️", is_visible: true, sort_order: 1010 },
@@ -92,10 +97,15 @@ const CALLBACKS: Record<string, string> = {
   "menu.support": "support",
   "menu.admin": "admin:menu",
 };
+const URL_ENVS: Record<string, string> = {
+  "menu.bot_logs": "BOT_LOG_CHANNEL_URL",
+  "menu.channel": "MAIN_CHANNEL_URL",
+  "menu.reviews": "REVIEW_GROUP_URL",
+};
 
-type BtnStyle = "primary" | "success" | "danger";
+type BtnStyle = "primary" | "success" | "danger" | "black";
 
-const STYLES: Record<string, BtnStyle> = {
+const STYLES: Record < string, BtnStyle > = {
   "menu.shop": "primary",
   "menu.wallet": "success",
   "menu.profile": "primary",
@@ -103,14 +113,20 @@ const STYLES: Record<string, BtnStyle> = {
   "menu.pending": "primary",
   "menu.referrals": "primary",
   "menu.support": "primary",
+  
+  "menu.bot_logs": "black",
+  "menu.channel": "black",
+  "menu.reviews": "black",
+  
   "menu.admin": "danger",
 };
 
 type PremiumButton = {
   text: string;
-  callback_data: string;
-  style?: BtnStyle;
-  icon_custom_emoji_id?: string;
+  callback_data ? : string;
+  url ? : string;
+  style ? : BtnStyle;
+  icon_custom_emoji_id ? : string;
 };
 
 export async function dynamicMainMenu(showAdmin: boolean): Promise<{ inline_keyboard: PremiumButton[][] }> {
@@ -124,14 +140,18 @@ export async function dynamicMainMenu(showAdmin: boolean): Promise<{ inline_keyb
 
   for (const b of visible) {
     const callback_data = CALLBACKS[b.key];
-    if (!callback_data) continue;
 
-    current.push({
-      text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
-      callback_data,
-      style: STYLES[b.key],
-      ...(b.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
-    });
+const urlEnv = URL_ENVS[b.key];
+const url = urlEnv ? process.env[urlEnv] : undefined;
+
+if (!callback_data && !url) continue;
+
+current.push({
+  text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
+  ...(url ? { url } : { callback_data }),
+  style: STYLES[b.key],
+  ...(b.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
+});
 
     if (current.length === 2) {
       rows.push(current);

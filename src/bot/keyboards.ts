@@ -3,13 +3,14 @@ import { stripEmojiTags } from "@/bot/messaging";
 
 export { dynamicMainMenu };
 
-type BtnStyle = "primary" | "success" | "danger";
+type BtnStyle = "primary" | "success" | "danger" | "black";
 
 type PremiumButton = {
   text: string;
-  callback_data: string;
-  style?: BtnStyle;
-  icon_custom_emoji_id?: string;
+  callback_data ? : string;
+  url ? : string;
+  style ? : BtnStyle;
+  icon_custom_emoji_id ? : string;
 };
 
 type PremiumKeyboard = {
