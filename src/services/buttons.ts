@@ -134,9 +134,6 @@ export async function dynamicMainMenu(showAdmin: boolean): Promise < { inline_ke
     .filter((b) => b.is_visible && (b.key !== "menu.admin" || showAdmin))
     .sort((a, b) => a.sort_order - b.sort_order);
   
-  const specialKeys = ["menu.bot_logs", "menu.reviews", "menu.policies"];
-  const specialSet = new Set(specialKeys);
-  
   const makeButton = (b: ButtonTpl): PremiumButton | null => {
     const callback_data = CALLBACKS[b.key];
     
@@ -160,12 +157,16 @@ export async function dynamicMainMenu(showAdmin: boolean): Promise < { inline_ke
   
   const rows: PremiumButton[][] = [];
   let current: PremiumButton[] = [];
+  let channelButton: PremiumButton | null = null;
   
   for (const b of visible) {
-    if (specialSet.has(b.key)) continue;
-    
     const btn = makeButton(b);
     if (!btn) continue;
+    
+    if (b.key === "menu.channel") {
+      channelButton = btn;
+      continue;
+    }
     
     current.push(btn);
     
@@ -175,16 +176,12 @@ export async function dynamicMainMenu(showAdmin: boolean): Promise < { inline_ke
     }
   }
   
-  if (current.length) rows.push(current);
+  if (current.length) {
+    rows.push(current);
+  }
   
-  const specialRow = specialKeys
-    .map((key) => visible.find((b) => b.key === key))
-    .filter(Boolean)
-    .map((b) => makeButton(b as ButtonTpl))
-    .filter(Boolean) as PremiumButton[];
-  
-  if (specialRow.length) {
-    rows.push(specialRow);
+  if (channelButton) {
+    rows.push([channelButton]);
   }
   
   return { inline_keyboard: rows };
