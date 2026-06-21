@@ -424,6 +424,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "wallet_home",
   "product_detail",
   "broadcast_stock_added",
+  "bot_policies",
 ];
 
   const { data, error } = await supabaseAdmin

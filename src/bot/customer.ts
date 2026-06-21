@@ -545,11 +545,19 @@ await ctx.editMessageText(productText, {
       }, { reply_markup: await backToMenuKeyboard() });
   });
 
-  bot.callbackQuery("support", async (ctx) => {
-    await ctx.answerCallbackQuery();
-    await tEdit(ctx, "support", "Contact admin.", {}, { reply_markup: await backToMenuKeyboard() });
-  });
+  bot.callbackQuery("policies", async (ctx) => {
+  await ctx.answerCallbackQuery();
 
+  await tEdit(
+    ctx,
+    "bot_policies",
+    "📜 *Bot Policies*\n\n1. All sales are final after successful delivery.\n2. Read product details before buying.\n3. Wrong payments, duplicate references, or fake receipts may be rejected.\n4. If delivery has an issue, contact support with your order ID.\n5. Abuse or repeated invalid attempts may lead to a ban.",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
+});
   // ---- WALLET
   bot.callbackQuery("wallet:home", async (ctx) => {
     await ctx.answerCallbackQuery();
