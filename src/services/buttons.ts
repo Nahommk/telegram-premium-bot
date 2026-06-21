@@ -95,7 +95,6 @@ const CALLBACKS: Record<string, string> = {
   "menu.referrals": "ref:home",
   "menu.profile": "profile",
   "menu.support": "support",
-"menu.policies": "policies",
 "menu.admin": "admin:menu",
 };
 const URL_ENVS: Record<string, string> = {

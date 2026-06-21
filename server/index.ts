@@ -26,6 +26,7 @@ async function main() {
 bot.api.setMyCommands([
   { command: "start", description: "Start bot" },
   { command: "help", description: "Help" },
+  { command: "policies", description: "Bot policies" },
 ]).catch(console.error);
   if (MODE === "polling") {
     console.log("[bot] starting long-polling…");

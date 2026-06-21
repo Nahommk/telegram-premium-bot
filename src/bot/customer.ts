@@ -260,7 +260,17 @@ export function registerCustomer(bot: Bot<BotCtx>) {
     console.log("MENU DEBUG:", JSON.stringify(kb, null, 2));
     await tReply(ctx, "guide", guideText, {}, { reply_markup: kb });
   });
-
+bot.command(["policies", "policy"], async (ctx) => {
+  await tReply(
+    ctx,
+    "bot_policies",
+    "📜 *Bot Policies*\n\n1. All sales are final after successful delivery.\n2. Read product details before buying.\n3. Wrong payments, duplicate references, or fake receipts may be rejected.\n4. If delivery has an issue, contact support with your order ID.\n5. Abuse or repeated invalid attempts may lead to a ban.",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
+});
 
   // ---- Shop
   bot.callbackQuery(/^shop:list:(\d+)$/, async (ctx) => {
