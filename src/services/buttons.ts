@@ -24,9 +24,9 @@ const DEFAULT_BUTTONS: ButtonTpl[] = [
   { key: "menu.support", label: "Support", emoji: "", is_visible: true, sort_order: 70 },
 
 { key: "menu.bot_logs", label: "Bot Logs", emoji: "", is_visible: true, sort_order: 80 },
-{ key: "menu.channel", label: "Channel", emoji: "", is_visible: true, sort_order: 90 },
-{ key: "menu.reviews", label: "Reviews", emoji: "⭐", is_visible: true, sort_order: 95 },
-
+{ key: "menu.reviews", label: "Reviews", emoji: "⭐", is_visible: true, sort_order: 85 },
+{ key: "menu.policies", label: "Bot Policies", emoji: "📜", is_visible: true, sort_order: 90 },
+{ key: "menu.channel", label: "Channel", emoji: "", is_visible: true, sort_order: 95 },
 { key: "menu.admin", label: "Admin Panel", emoji: "️", is_visible: true, sort_order: 100 },
 
   { key: "btn_back", label: "Back", emoji: "⬅️", is_visible: true, sort_order: 1000 },
@@ -95,7 +95,8 @@ const CALLBACKS: Record<string, string> = {
   "menu.referrals": "ref:home",
   "menu.profile": "profile",
   "menu.support": "support",
-  "menu.admin": "admin:menu",
+"menu.policies": "policies",
+"menu.admin": "admin:menu",
 };
 const URL_ENVS: Record<string, string> = {
   "menu.bot_logs": "BOT_LOG_CHANNEL_URL",
@@ -127,41 +128,65 @@ type PremiumButton = {
   icon_custom_emoji_id ? : string;
 };
 
-export async function dynamicMainMenu(showAdmin: boolean): Promise<{ inline_keyboard: PremiumButton[][] }> {
+export async function dynamicMainMenu(showAdmin: boolean): Promise < { inline_keyboard: PremiumButton[][] } > {
   const buttons = await loadButtons();
+  
   const visible = buttons
     .filter((b) => b.is_visible && (b.key !== "menu.admin" || showAdmin))
     .sort((a, b) => a.sort_order - b.sort_order);
-
+  
+  const specialKeys = ["menu.bot_logs", "menu.reviews", "menu.policies"];
+  const specialSet = new Set(specialKeys);
+  
+  const makeButton = (b: ButtonTpl): PremiumButton | null => {
+    const callback_data = CALLBACKS[b.key];
+    
+    const urlEnv = URL_ENVS[b.key];
+    const rawUrl = urlEnv ? String(process.env[urlEnv] ?? "").trim() : "";
+    const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : undefined;
+    
+    if (urlEnv && rawUrl && !url) {
+      console.error("[main_menu_bad_url]", b.key, rawUrl);
+    }
+    
+    if (!callback_data && !url) return null;
+    
+    return {
+      text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
+      ...(url ? { url } : { callback_data: callback_data! }),
+      ...(STYLES[b.key] ? { style: STYLES[b.key] } : {}),
+      ...(b.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
+    };
+  };
+  
   const rows: PremiumButton[][] = [];
   let current: PremiumButton[] = [];
-
+  
   for (const b of visible) {
-    const callback_data = CALLBACKS[b.key];
-
-const urlEnv = URL_ENVS[b.key];
-const rawUrl = urlEnv ? String(process.env[urlEnv] ?? "").trim() : "";
-const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : undefined;
-
-if (urlEnv && rawUrl && !url) {
-  console.error("[main_menu_bad_url]", b.key, rawUrl);
-}
-
-if (!callback_data && !url) continue;
-
-current.push({
-  text: b.icon_custom_emoji_id ? stripEmojiTags(b.label) : btnText(b),
-  ...(url ? { url } : { callback_data }),
-  ...(STYLES[b.key] ? { style: STYLES[b.key] } : {}),
-  ...(b.icon_custom_emoji_id ? { icon_custom_emoji_id: b.icon_custom_emoji_id } : {}),
-});
-
+    if (specialSet.has(b.key)) continue;
+    
+    const btn = makeButton(b);
+    if (!btn) continue;
+    
+    current.push(btn);
+    
     if (current.length === 2) {
       rows.push(current);
       current = [];
     }
   }
-
+  
   if (current.length) rows.push(current);
+  
+  const specialRow = specialKeys
+    .map((key) => visible.find((b) => b.key === key))
+    .filter(Boolean)
+    .map((b) => makeButton(b as ButtonTpl))
+    .filter(Boolean) as PremiumButton[];
+  
+  if (specialRow.length) {
+    rows.push(specialRow);
+  }
+  
   return { inline_keyboard: rows };
 }
