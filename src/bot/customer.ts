@@ -139,6 +139,59 @@ async function notifyChannel(ctx: BotCtx, templateKey: string, fallback: string,
     console.error("[notifyChannel]", e);
   }
 }
+async function expireOldPendingOrders() {
+  const nowIso = new Date().toISOString();
+
+  await supabaseAdmin
+    .from("orders")
+    .update({ status: "expired" })
+    .eq("status", "pending")
+    .lt("expires_at", nowIso);
+}
+
+async function availableStockMap(productIds: string[]) {
+  const ids = [...new Set(productIds.filter(Boolean))];
+  const map = new Map<string, number>();
+
+  for (const id of ids) map.set(id, 0);
+  if (!ids.length) return map;
+
+  await expireOldPendingOrders();
+
+  const nowIso = new Date().toISOString();
+
+  const { data: codes } = await supabaseAdmin
+    .from("product_codes")
+    .select("product_id")
+    .in("product_id", ids)
+    .eq("is_used", false);
+
+  for (const row of (codes ?? []) as Array<{ product_id: string }>) {
+    map.set(row.product_id, (map.get(row.product_id) ?? 0) + 1);
+  }
+
+  const { data: pending } = await supabaseAdmin
+    .from("orders")
+    .select("product_id, quantity")
+    .in("product_id", ids)
+    .eq("status", "pending")
+    .gt("expires_at", nowIso);
+
+  for (const row of (pending ?? []) as Array<{ product_id: string; quantity: number }>) {
+    map.set(row.product_id, (map.get(row.product_id) ?? 0) - Number(row.quantity ?? 0));
+  }
+
+  for (const [id, value] of map.entries()) {
+    map.set(id, Math.max(0, value));
+  }
+
+  return map;
+}
+
+async function availableStock(productId: string) {
+  const map = await availableStockMap([productId]);
+  return map.get(productId) ?? 0;
+}
 async function sendShopList(ctx: BotCtx, page = 0) {
   const from = page * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -168,21 +221,7 @@ async function sendShopList(ctx: BotCtx, page = 0) {
     .filter((p: any) => p.delivery_mode === "automatic")
     .map((p: any) => p.id);
 
-  const stockMap = new Map<string, number>();
-
-  if (autoIds.length) {
-    const { data: codes } = await supabaseAdmin
-      .from("product_codes")
-      .select("product_id")
-      .in("product_id", autoIds)
-      .eq("is_used", false);
-
-    for (const id of autoIds) stockMap.set(id, 0);
-
-    for (const row of (codes ?? []) as Array<{ product_id: string }>) {
-      stockMap.set(row.product_id, (stockMap.get(row.product_id) ?? 0) + 1);
-    }
-  }
+  const stockMap = await availableStockMap(autoIds);
 
   const enriched = products.map((p: any) => {
     const stockLeft =
@@ -293,21 +332,7 @@ const autoIds = products
   .filter((p: any) => p.delivery_mode === "automatic")
   .map((p: any) => p.id);
 
-const stockMap = new Map<string, number>();
-
-if (autoIds.length) {
-  const { data: codes } = await supabaseAdmin
-    .from("product_codes")
-    .select("product_id")
-    .in("product_id", autoIds)
-    .eq("is_used", false);
-
-  for (const id of autoIds) stockMap.set(id, 0);
-
-  for (const row of (codes ?? []) as Array<{ product_id: string }>) {
-    stockMap.set(row.product_id, (stockMap.get(row.product_id) ?? 0) + 1);
-  }
-}
+const stockMap = await availableStockMap(autoIds);
 
 const enriched = products.map((p: any) => {
   const stockLeft =
@@ -347,14 +372,7 @@ const enriched = products.map((p: any) => {
   let stock = "—";
   
   if (p.delivery_mode === "automatic") {
-    const { count } = await supabaseAdmin
-      .from("product_codes")
-      .select("id", { count: "exact", head: true })
-      .eq("product_id", p.id)
-      .eq("is_used", false);
-    
-    stock = String(count ?? 0);
-  } else {
+    stock = String(await availableStock(p.id));else {
     stock = await getMessageTemplate("stock_manual_label", "manual delivery");
   }
   
@@ -1093,19 +1111,27 @@ async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: numb
   }
 
   if (p.delivery_mode === "automatic") {
-    const { count } = await supabaseAdmin
-      .from("product_codes").select("id", { count: "exact", head: true })
-      .eq("product_id", p.id).eq("is_used", false);
-    if ((count ?? 0) < qty) {
-      await tReply(ctx, "order_not_enough_stock", "Not enough stock. Available: {available}", { available: count ?? 0 });
-      return;
-    }
-  }
+  const stockLeft = await availableStock(p.id);
 
+  if (stockLeft < qty) {
+    await tReply(
+      ctx,
+      "out_of_stock",
+      "❌ Out of stock. Only {stock} left.",
+      { stock: stockLeft },
+      {
+        reply_markup: await backToMenuKeyboard(),
+      }
+    );
+    return;
+  }
+}
   const total = p.price_cents * qty;
+  const orderExpireMinutes = Number(process.env.ORDER_EXPIRE_MINUTES ?? 10);
+const expiresAt = new Date(Date.now() + orderExpireMinutes * 60_000).toISOString();
   const { data: order, error } = await supabaseAdmin.from("orders").insert({
     user_telegram_id: ctx.from!.id, product_id: p.id, quantity: qty,
-    unit_price_cents: p.price_cents, total_cents: total,
+    unit_price_cents: p.price_cents, total_cents: total, expires_at: expiresAt,
   }).select("id, short_id").single();
   if (error || !order) {
     await tReply(ctx, "order_create_failed", "Could not create order.");
