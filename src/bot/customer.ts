@@ -818,77 +818,141 @@ if (cleanText === "shop") {
   });
 }
 
-async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, result: Awaited<ReturnType<typeof verifyAndDeliver>>) {
+async function handlePaymentResult(
+  ctx: BotCtx,
+  state: Record<string, any>,
+  result: Awaited<ReturnType<typeof verifyAndDeliver>>
+) {
   if (result.status === "delivered" || result.status === "waiting_manual") {
-    await tReply(ctx, "payment_verified_success",
+    const short = result.short_id ?? state.short_id;
+
+    await tReply(
+      ctx,
+      "payment_verified_success",
       "✅ *Payment verified successfully!*\n\nReference: `{reference}`\nAmount: *{amount} ETB*\nOrder: *{short_id}*\n\n_Preparing your delivery…_",
       {
-        short_id: result.short_id ?? state.short_id,
+        short,
+        short_id: short,
+        order_id: short,
         reference: result.reference ?? "",
         amount: result.amount_cents !== undefined ? formatPrice(result.amount_cents) : "",
-      });
+      }
+    );
+
     if (result.tip_cents && result.tip_cents > 0 && result.amount_cents !== undefined) {
-      await tReply(ctx, "payment_tip_thanks",
-        "🙏 *Thanks for the {tip} ETB tip!* You paid *{received} ETB* on a *{expected} ETB* order — much appreciated! 💛",
+      await tReply(
+        ctx,
+        "payment_tip_thanks",
+        " *Thanks for the {tip} ETB tip!* You paid *{received} ETB* on a *{expected} ETB* order — much appreciated! ",
         {
           tip: formatPrice(result.tip_cents),
           expected: formatPrice(result.amount_cents - result.tip_cents),
           received: formatPrice(result.amount_cents),
-        });
+        }
+      );
     }
   }
 
   if (result.status === "delivered") {
-  await notifyPurchaseChannel(ctx, state.order_id);
-  await setUserState(ctx.from!.id, null);
+    await notifyPurchaseChannel(ctx, state.order_id);
+    await setUserState(ctx.from!.id, null);
+
     const { data: o } = await supabaseAdmin
-      .from("orders") .select("short_id, products(name, icon, warranty_text)")
-      .eq("id", state.order_id).maybeSingle() as any;
-      const deliveredCode = String(
-  (result as any).code ??
-  (result as any).delivered_code ??
-  (result as any).content ??
-  ""
-).trim();
+      .from("orders")
+      .select("short_id, products(name, icon, warranty_text)")
+      .eq("id", state.order_id)
+      .maybeSingle() as any;
 
-if (!deliveredCode) {
-  console.error("[payment_delivery_empty_code]", {
-    orderId: state.order_id,
-    result,
-  });
+    const deliveredCode = String(
+      (result as any).code ??
+      (result as any).delivered_code ??
+      (result as any).content ??
+      ""
+    ).trim();
 
-  const short = o?.short_id ?? result.short_id ?? state.short_id;
+    if (!deliveredCode) {
+      console.error("[payment_delivery_empty_code]", {
+        orderId: state.order_id,
+        result,
+      });
 
-await tReply(ctx, "delivery", "Delivered.\nCode: {code}", {
-  short,
-  short_id: short,
-  order_id: short,
+      await tReply(
+        ctx,
+        "delivery_empty_code",
+        "⚠️ Payment verified, but delivery code is empty.\nPlease contact admin.",
+        {},
+        {
+          reply_markup: await backToMenuKeyboard(),
+        }
+      );
 
-  icon: deliveryProductIcon(o?.products?.icon),
-  product_name: o?.products?.name ?? "",
-  warranty: o?.products?.warranty_text ?? "",
+      return;
+    }
 
-  code: deliveredCode,
-  content: deliveredCode,
-}, { reply_markup: await dynamicMainMenu(ctx.isAdmin) });
+    const short = o?.short_id ?? result.short_id ?? state.short_id;
+
+    await tReply(
+      ctx,
+      "delivery",
+      "Delivered.\nCode: {code}",
+      {
+        short,
+        short_id: short,
+        order_id: short,
+
+        icon: deliveryProductIcon(o?.products?.icon),
+        product_name: o?.products?.name ?? "",
+        warranty: o?.products?.warranty_text ?? "",
+
+        code: deliveredCode,
+        content: deliveredCode,
+      },
+      {
+        reply_markup: await dynamicMainMenu(ctx.isAdmin),
+      }
+    );
+
     return;
   }
 
   if (result.status === "waiting_manual") {
-  await notifyPurchaseChannel(ctx, state.order_id);
-  await setUserState(ctx.from!.id, null);
-    await tReply(ctx, "payment_waiting_manual",
-      "✅ Your payment was verified successfully.\n\nYour order *{short_id}* is waiting for manual delivery by admin. You will be notified here as soon as it's delivered.",
-      { short_id: result.short_id ?? state.short_id },
-      { reply_markup: await backToMenuKeyboard() });
+    await notifyPurchaseChannel(ctx, state.order_id);
+    await setUserState(ctx.from!.id, null);
+
+    const short = result.short_id ?? state.short_id;
+
+    await tReply(
+      ctx,
+      "payment_waiting_manual",
+      "✅ Your payment was verified successfully.\n\nYour order *{short_id}* is waiting for manual delivery by admin.\nYou will be notified here as soon as it's delivered.",
+      {
+        short,
+        short_id: short,
+        order_id: short,
+      },
+      {
+        reply_markup: await backToMenuKeyboard(),
+      }
+    );
+
     await notifyAdminsManualDelivery(getBot(), state.order_id);
     return;
   }
 
-  await tReply(ctx, "payment_failed",
+  await tReply(
+    ctx,
+    "payment_failed",
     "❌ Payment verification failed for order {short_id}.\n\nReason: {reason}\n\nDouble-check the reference and try again, or contact support.",
-    { short_id: state.short_id, reason: result.reason ?? "unknown error" },
-    { reply_markup: await awaitingReferenceKeyboard(state.order_id) });
+    {
+      short: state.short_id,
+      short_id: state.short_id,
+      order_id: state.short_id,
+      reason: result.reason ?? "unknown error",
+    },
+    {
+      reply_markup: await awaitingReferenceKeyboard(state.order_id),
+    }
+  );
 }
 
 async function downloadReceiptFile(ctx: BotCtx): Promise<{ ok: true; file: Blob; hash: string } | { ok: false; reason: string }> {
