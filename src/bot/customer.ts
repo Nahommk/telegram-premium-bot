@@ -75,9 +75,11 @@ function publicProductIcon(icon: unknown): string {
 function deliveryProductIcon(icon: unknown): string {
   const raw = String(icon ?? "").trim();
   if (!raw) return "";
+  
   if (/^\d{8,}$/.test(raw)) {
     return `<tg-emoji emoji-id="${raw}">⭐</tg-emoji>`;
   }
+  
   return raw;
 }
 function publicProviderLabel(provider: PayoutProvider | string): string {
@@ -476,13 +478,26 @@ await ctx.editMessageText(productText, {
     return;
   }
 
-  await tReply(ctx, "delivery", "Delivered.\nCode: {code}", {
-    short_id: result.short_id,
-    code: deliveredCode,
-    content: deliveredCode,
-  }, {
-    reply_markup: await backToMenuKeyboard()
-  });
+  const { data: deliveryOrder } = await supabaseAdmin
+  .from("orders")
+  .select("short_id, products(name, icon, warranty_text)")
+  .eq("id", orderId)
+  .maybeSingle() as any;
+
+const short = deliveryOrder?.short_id ?? result.short_id;
+
+await tReply(ctx, "delivery", "Delivered.\nCode: {code}", {
+  short,
+  short_id: short,
+  order_id: short,
+  
+  icon: deliveryProductIcon(deliveryOrder?.products?.icon),
+  product_name: deliveryOrder?.products?.name ?? "",
+  warranty: deliveryOrder?.products?.warranty_text ?? "",
+  
+  code: deliveredCode,
+  content: deliveredCode,
+}, { reply_markup: await backToMenuKeyboard() });
 }
       try { await grantReward(orderId); } catch { /* noop */ }
     } catch (e: any) {
@@ -827,7 +842,7 @@ async function handlePaymentResult(ctx: BotCtx, state: Record<string, any>, resu
   await notifyPurchaseChannel(ctx, state.order_id);
   await setUserState(ctx.from!.id, null);
     const { data: o } = await supabaseAdmin
-      .from("orders").select("short_id, products(name, warranty_text)")
+      .from("orders") .select("short_id, products(name, icon, warranty_text)")
       .eq("id", state.order_id).maybeSingle() as any;
       const deliveredCode = String(
   (result as any).code ??
@@ -842,25 +857,20 @@ if (!deliveredCode) {
     result,
   });
 
-  await tReply(
-    ctx,
-    "delivery_empty_code",
-    "⚠️ Payment verified, but delivery code is empty. Please contact admin.",
-    {},
-    {
-      reply_markup: await backToMenuKeyboard(),
-    }
-  );
+  const short = o?.short_id ?? result.short_id ?? state.short_id;
 
-  return;
-}
-    await tReply(ctx, "delivery", "Delivered. Code: {code}", {
-      short_id: o?.short_id,
-      product_name: o?.products?.name,
-      warranty: o?.products?.warranty_text,
-      code: deliveredCode,
-      content: deliveredCode,
-    }, { reply_markup: await dynamicMainMenu(ctx.isAdmin) });
+await tReply(ctx, "delivery", "Delivered.\nCode: {code}", {
+  short,
+  short_id: short,
+  order_id: short,
+
+  icon: deliveryProductIcon(o?.products?.icon),
+  product_name: o?.products?.name ?? "",
+  warranty: o?.products?.warranty_text ?? "",
+
+  code: deliveredCode,
+  content: deliveredCode,
+}, { reply_markup: await dynamicMainMenu(ctx.isAdmin) });
     return;
   }
 

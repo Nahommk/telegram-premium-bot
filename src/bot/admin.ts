@@ -41,7 +41,16 @@ function broadcastProductIcon(icon: unknown): string {
 
   return raw;
 }
+function deliveryProductIcon(icon: unknown): string {
+  const raw = String(icon ?? "").trim();
+  if (!raw) return "";
 
+  if (/^\d{8,}$/.test(raw)) {
+    return `<tg-emoji emoji-id="${raw}">⭐</tg-emoji>`;
+  }
+
+  return raw;
+}
 async function countAvailableStock(productId: string): Promise<number> {
   const { count } = await supabaseAdmin
     .from("product_codes")
@@ -941,7 +950,7 @@ return;
   
   const { data: o } = await supabaseAdmin
   .from("orders")
-  .select("user_telegram_id, short_id, status, manual_delivery_status")
+  .select("user_telegram_id, short_id, status, manual_delivery_status, products(name, icon, warranty_text)")
   .eq("id", orderId)
   .maybeSingle();
   
@@ -964,9 +973,16 @@ return;
       const body = await renderMessage(
         "delivery_completed",
         "🎉 *Delivery for {short}*\n\n{content}",
-        {
-          short: o.short_id,
-          content: encodeCustomEmoji(
+     {
+  short: o.short_id,
+  short_id: o.short_id,
+  order_id: o.short_id,
+  
+  icon: deliveryProductIcon((o as any).products?.icon),
+  product_name: (o as any).products?.name ?? "",
+  warranty: (o as any).products?.warranty_text ?? "",
+  
+  content: encodeCustomEmoji(
   ctx.message.text,
   ctx.message.entities as any
 ),
@@ -990,16 +1006,23 @@ return;
       const caption = await renderMessage(
         "delivery_completed",
         "🎉 *Delivery for {short}*\n\n{content}",
-        {
-          short: o.short_id,
-          content: encodeCustomEmoji(   ctx.message.caption ?? "",   ctx.message.caption_entities as any ),
+       {
+  short: o.short_id,
+  short_id: o.short_id,
+  order_id: o.short_id,
+
+  icon: deliveryProductIcon((o as any).products?.icon),
+  product_name: (o as any).products?.name ?? "",
+  warranty: (o as any).products?.warranty_text ?? "",
+
+  content: encodeCustomEmoji(   ctx.message.caption ?? "",   ctx.message.caption_entities as any ),
         }
       );
       
       await ctx.api.sendPhoto(userId, ph.file_id, {
-        caption,
-        parse_mode: "Markdown",
-      });
+  caption: toHtml(caption),
+  parse_mode: "HTML",
+});
       
       await markManuallyDelivered(
         orderId,
@@ -1012,8 +1035,15 @@ return;
         "delivery_completed",
         "🎉 *Delivery for {short}*\n\n{content}",
         {
-          short: o.short_id,
-          content: encodeCustomEmoji(   ctx.message.caption ?? "",   ctx.message.caption_entities as any ),
+  short: o.short_id,
+  short_id: o.short_id,
+  order_id: o.short_id,
+  
+  icon: deliveryProductIcon((o as any).products?.icon),
+  product_name: (o as any).products?.name ?? "",
+  warranty: (o as any).products?.warranty_text ?? "",
+  
+  content: encodeCustomEmoji(  ctx.message.caption ?? "",   ctx.message.caption_entities as any ),
         }
       );
       
