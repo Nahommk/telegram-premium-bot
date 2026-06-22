@@ -370,11 +370,12 @@ const enriched = products.map((p: any) => {
   }
   
   let stock = "—";
-  
-  if (p.delivery_mode === "automatic") {
-    stock = String(await availableStock(p.id));else {
-    stock = await getMessageTemplate("stock_manual_label", "manual delivery");
-  }
+
+if (p.delivery_mode === "automatic") {
+  stock = String(await availableStock(p.id));
+} else {
+  stock = await getMessageTemplate("stock_manual_label", "manual delivery");
+}
   
   const productIcon = /^\d{8,}$/.test(String(p.icon || "")) ?
   `<tg-emoji emoji-id="${p.icon}">🎮</tg-emoji>` :
