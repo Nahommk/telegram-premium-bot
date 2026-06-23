@@ -12,7 +12,7 @@ export function manualDeliveryKeyboard(orderId: string): InlineKeyboard {
 export async function notifyAdminsManualDelivery(bot: Bot<BotCtx>, orderId: string) {
   const { data: o } = await supabaseAdmin
     .from("orders")
-    .select("id, short_id, user_telegram_id, quantity, total_cents, payment_method, products(name, icon)")
+    .select("id, short_id, user_telegram_id, quantity, total_cents, payment_method, customer_email, customer_password, products(name, icon)")
     .eq("id", orderId).maybeSingle() as any;
   if (!o) return;
   const { data: u } = await supabaseAdmin
@@ -21,16 +21,20 @@ export async function notifyAdminsManualDelivery(bot: Bot<BotCtx>, orderId: stri
     .from("payments").select("reference, amount_cents").eq("order_id", orderId)
     .order("verified_at", { ascending: false }).limit(1).maybeSingle();
 
-  const text =
-    `🔔 *Manual delivery required*\n\n` +
-    `Order: \`${o.short_id}\`\n` +
-    `Product: ${o.products?.icon ?? ""} ${o.products?.name}\n` +
-    `Quantity: ${o.quantity}\n` +
-    `Total: ${(o.total_cents / 100).toFixed(2)} ETB\n` +
-    `Method: ${o.payment_method ?? "wallet"}\n` +
-    `Reference: \`${lastPayment?.reference ?? "wallet"}\`\n` +
-    `Amount paid: ${((lastPayment?.amount_cents ?? o.total_cents) / 100).toFixed(2)} ETB\n` +
-    `User: ${u?.first_name ?? ""} @${u?.username ?? "—"} \`${o.user_telegram_id}\``;
+  const credentialsLine = o.customer_email ?
+  `\n\nLogin details:\nEmail: \`${o.customer_email}\`${o.customer_password ? `\nPassword: \`${o.customer_password}\`` : ""}` :
+  "";
+
+const text = ` *Manual delivery required*\n\n` +
+  `Order: \`${o.short_id}\`\n` +
+  `Product: ${o.products?.icon ?? ""} ${o.products?.name}\n` +
+  `Quantity: ${o.quantity}\n` +
+  `Total: ${(o.total_cents / 100).toFixed(2)} ETB\n` +
+  `Method: ${o.payment_method ?? "wallet"}\n` +
+  `Reference: \`${lastPayment?.reference ?? "wallet"}\`\n` +
+  `Amount paid: ${((lastPayment?.amount_cents ?? o.total_cents) / 100).toFixed(2)} ETB\n` +
+  `User: ${u?.first_name ?? ""} @${u?.username ?? "—"} \`${o.user_telegram_id}\`` +
+  credentialsLine;
 
   const adminIds = (process.env.ADMIN_TELEGRAM_IDS ?? "")
     .split(",").map((s) => s.trim()).filter(Boolean);
