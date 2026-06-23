@@ -96,12 +96,28 @@ export async function productListKeyboard(
   const nav: PremiumButton[] = [];
 
   if (page > 0) {
-    nav.push({ text: "◀️", callback_data: `shop:list:${page - 1}`, style: "primary" });
-  }
+  nav.push(
+    await premiumBtn(
+      "btn_prev",
+      "Previous",
+      "◀️",
+      `shop:list:${page - 1}`,
+      "primary"
+    )
+  );
+}
 
-  if (page < maxPage) {
-    nav.push({ text: "▶️", callback_data: `shop:list:${page + 1}`, style: "primary" });
-  }
+if (page < maxPage) {
+  nav.push(
+    await premiumBtn(
+      "btn_next",
+      "Next",
+      "▶️",
+      `shop:list:${page + 1}`,
+      "primary"
+    )
+  );
+}
 
   if (nav.length) rows.push(nav);
 
