@@ -82,6 +82,37 @@ function deliveryProductIcon(icon: unknown): string {
   
   return raw;
 }
+function parseCustomerCredentials(
+  text: string,
+  mode: string
+): { email: string; password?: string } | null {
+  const clean = text.trim();
+
+  if (mode === "email") {
+    const email = clean;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+
+    return { email };
+  }
+
+  if (mode === "email_password") {
+    const lines = clean
+      .split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    const email = lines[0] ?? "";
+    const password = lines.slice(1).join("\n").trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+    if (password.length < 3) return null;
+
+    return { email, password };
+  }
+
+  return null;
+}
 function publicProviderLabel(provider: PayoutProvider | string): string {
   const p = String(provider || "").toLowerCase();
 
@@ -743,7 +774,44 @@ if (cleanText === "shop") {
       await createOrderAndAskMethod(ctx, state.product_id, qty);
       return;
     }
+if (state?.awaiting === "order_credentials") {
+  const mode = String(state.credential_request ?? "none");
+  const parsed = parseCustomerCredentials(text, mode);
 
+  if (!parsed) {
+if (mode === "email") {
+  await tReply(
+    ctx,
+    "order_credentials_invalid_email",
+    "❌ Invalid email.\n\nSend only your email address:"
+  );
+} else {
+  await tReply(
+    ctx,
+    "order_credentials_invalid_email_password",
+    "❌ Invalid format.\n\nSend it exactly like this:\n\nemail@example.com\nyour-password"
+  );
+}
+    return;
+  }
+
+  try {
+    await ctx.deleteMessage();
+  } catch {
+    // ignore
+  }
+
+  await setUserState(ctx.from!.id, null);
+
+  await createOrderAndAskMethod(
+    ctx,
+    state.product_id,
+    Number(state.qty),
+    parsed
+  );
+
+  return;
+}
     if (state?.awaiting === "deposit_custom_amount") {
       const amt = parseFloat(text);
       if (!Number.isFinite(amt) || amt < 10 || amt > 100000) {
@@ -1176,9 +1244,9 @@ async function askDepositMethod(ctx: BotCtx, amount: number) {
   }
 }
 
-async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: number) {
+async function createOrderAndAskMethod(   ctx: BotCtx,   productId: string,   qty: number,   credentials?: { email: string; password?: string } ) {
   const { data: p } = await supabaseAdmin
-    .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode")
+    .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request")
     .eq("id", productId).maybeSingle();
   if (!p || !p.is_enabled) {
     await tReply(ctx, "product_unavailable_inline", "Product unavailable.");
@@ -1201,13 +1269,54 @@ async function createOrderAndAskMethod(ctx: BotCtx, productId: string, qty: numb
     return;
   }
 }
+const credentialMode = String(p.credential_request ?? "none");
+
+if (credentialMode !== "none" && !credentials) {
+  await setUserState(ctx.from!.id, {
+    awaiting: "order_credentials",
+    product_id: p.id,
+    qty,
+    credential_request: credentialMode,
+  });
+
+  if (credentialMode === "email") {
+  await tReply(
+    ctx,
+    "order_credentials_prompt_email",
+    "📧 This product requires your email.\n\nSend your email address:",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
+} else {
+  await tReply(
+    ctx,
+    "order_credentials_prompt_email_password",
+    "🔐 This product requires your email and password.\n\nSend them like this:\n\nemail@example.com\nyour-password\n\n⚠️ Your message will be deleted after the bot receives it.",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
+}
+
+  return;
+}
   const total = p.price_cents * qty;
   const orderExpireMinutes = Number(process.env.ORDER_EXPIRE_MINUTES ?? 10);
 const expiresAt = new Date(Date.now() + orderExpireMinutes * 60_000).toISOString();
   const { data: order, error } = await supabaseAdmin.from("orders").insert({
-    user_telegram_id: ctx.from!.id, product_id: p.id, quantity: qty,
-    unit_price_cents: p.price_cents, total_cents: total, expires_at: expiresAt,
-  }).select("id, short_id").single();
+  user_telegram_id: ctx.from!.id,
+  product_id: p.id,
+  quantity: qty,
+  unit_price_cents: p.price_cents,
+  total_cents: total,
+  expires_at: expiresAt,
+  
+  customer_email: credentials?.email ?? null,
+  customer_password: credentials?.password ?? null,
+}).select("id, short_id").single();
   if (error || !order) {
     await tReply(ctx, "order_create_failed", "Could not create order.");
     return;

@@ -138,7 +138,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     const page = parseInt(ctx.match![1], 10);
     await ctx.answerCallbackQuery();
     const { data } = await supabaseAdmin
-      .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode")
+      .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request")
       .order("created_at", { ascending: false }).range(page * 10, page * 10 + 9);
     const kb = new InlineKeyboard();
     (data ?? []).forEach((p) => {
@@ -176,20 +176,34 @@ export function registerAdmin(bot: Bot<BotCtx>) {
       .text(await getMessageTemplate("admin_btn_edit_price", "💵 Price"), `adm:p:edit:price:${p.id}`).row()
       .text(await getMessageTemplate("admin_btn_edit_desc", "📝 Desc"), `adm:p:edit:desc:${p.id}`)
       .text(await getMessageTemplate("admin_btn_edit_warranty", "🛡 Warranty"), `adm:p:edit:warranty:${p.id}`).row()
-      .text(await getMessageTemplate("admin_btn_edit_icon", "🎟 Icon"), `adm:p:edit:icon:${p.id}`)
-      .text(await getMessageTemplate("admin_btn_toggle_delivery", "🚚 Toggle delivery"), `adm:p:delivery:${p.id}`).row()
-      .text(p.is_enabled ? await getMessageTemplate("admin_btn_disable", "🚫 Disable") : await getMessageTemplate("admin_btn_enable", "✅ Enable"), `adm:p:toggle:${p.id}`)
+      .text(await getMessageTemplate("admin_btn_edit_icon", " Icon"), `adm:p:edit:icon:${p.id}`)
+  .text(await getMessageTemplate("admin_btn_toggle_delivery", " Toggle delivery"), `adm:p:delivery:${p.id}`).row()
+  .text(
+    p.credential_request === "email" ?
+    await getMessageTemplate("admin_btn_credentials_email", " Login: Email") :
+    p.credential_request === "email_password" ?
+    await getMessageTemplate("admin_btn_credentials_email_password", " Login: Email + Password") :
+    await getMessageTemplate("admin_btn_credentials_off", " Login: OFF"),
+    `adm:p:creds:${p.id}`
+  ).row()
+  .text(p.is_enabled ? await getMessageTemplate("admin_btn_disable", " Disable") : await getMessageTemplate("admin_btn_enable", "✅ Enable"), `adm:p:toggle:${p.id}`)
       .text(await getMessageTemplate("admin_btn_add_codes", "➕ Add codes"), `adm:s:add:${p.id}`).row()
       .text(await getMessageTemplate("admin_btn_delete", "🗑 Delete"), `adm:p:del:${p.id}`)
       .text(await getMessageTemplate("admin_btn_products_back", "⬅️ Products"), "adm:p:list:0");
     await tAEdit(ctx, "product_view",
-      "{icon} *{name}*\n\n{description}\n\n💵 {price} ETB\n🛡 {warranty}\n🚚 Delivery: *{mode}*\n📦 Stock: {avail} available / {used} sold\nStatus: {status}",
+      "{icon} *{name}*\n\n{description}\n\n💵 {price} ETB\n🛡 {warranty}\n🚚 Delivery: *{mode}*Login request: *{creds}*\n📦 Stock: {avail} available / {used} sold\nStatus: {status}",
       {
         icon: /^\d{8,}$/.test(String(p.icon || "")) ? "" : p.icon, name: p.name,
         description: p.description || "_no description_",
         price: formatPrice(p.price_cents),
         warranty: p.warranty_text || "—",
         mode: p.delivery_mode,
+        creds:
+  p.credential_request === "email"
+    ? "Email only"
+    : p.credential_request === "email_password"
+      ? "Email + Password"
+      : "OFF",
         avail: avail ?? 0, used: used ?? 0,
         status: p.is_enabled ? "✅ Enabled" : "🚫 Disabled",
       }, { reply_markup: kb });
@@ -207,7 +221,59 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     await tA(ctx, "delivery_mode_set", "Delivery mode set to *{mode}*.", { mode: next },
       { reply_markup: new InlineKeyboard().text(await getMessageTemplate("admin_btn_reload", "Reload"), `adm:p:view:${id}`) });
   });
+bot.callbackQuery(/^adm:p:creds:(.+)$/, async (ctx) => {
+  if (!requireAdmin(ctx)) return;
 
+  const id = ctx.match![1];
+  await ctx.answerCallbackQuery();
+
+  const { data: p } = await supabaseAdmin
+    .from("products")
+    .select("credential_request")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!p) return;
+
+  const current = String(p.credential_request ?? "none");
+
+  const next =
+    current === "none"
+      ? "email"
+      : current === "email"
+        ? "email_password"
+        : "none";
+
+  await supabaseAdmin
+    .from("products")
+    .update({ credential_request: next })
+    .eq("id", id);
+
+  await audit(ctx.from!.id, "product.credential_request", {
+    id,
+    credential_request: next,
+  });
+
+  await tA(
+    ctx,
+    "credentials_request_set",
+    "Login request set to *{status}*.",
+    {
+      status:
+        next === "email"
+          ? "Email only"
+          : next === "email_password"
+            ? "Email + Password"
+            : "OFF",
+    },
+    {
+      reply_markup: new InlineKeyboard().text(
+        await getMessageTemplate("admin_btn_reload", "Reload"),
+        `adm:p:view:${id}`
+      ),
+    }
+  );
+});
   bot.callbackQuery(/^adm:p:edit:(name|price|desc|warranty|icon):(.+)$/, async (ctx) => {
     if (!requireAdmin(ctx)) return;
     const field = ctx.match![1]; const id = ctx.match![2];
@@ -303,6 +369,12 @@ export function registerAdmin(bot: Bot<BotCtx>) {
       .from("orders").select("*, products(name, icon)").eq("id", id).maybeSingle() as any;
     if (!o) return;
     const codeLine = o.delivered_code ? `\nDelivered code:\n\`${o.delivered_code}\`` : "";
+    const credsLine = o.customer_email
+  ? `\n\nLogin details:\nEmail: ${o.customer_email}${
+      o.customer_password ? `\nPassword: ${o.customer_password}` : ""
+    }`
+  : "";
+    
     const kb = new InlineKeyboard();
     if (o.status === "paid_waiting_delivery" || (o.status === "paid" && o.manual_delivery_status !== "delivered")) {
       kb.text(await getMessageTemplate("admin_btn_deliver_now", "📨 Deliver Now"), `mdl:start:${o.id}`)
@@ -315,13 +387,13 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     }
     kb.text(await getMessageTemplate("admin_btn_back", "⬅️ Back"), "adm:o:list:pending:0");
     await tAEdit(ctx, "order_view",
-      "🧾 *{short_id}*\n\nProduct: {icon} {name}\nQty: {qty}\nTotal: {total} ETB\nMethod: {method}\nStatus: {status}\nManual delivery: {manual}\nUser: `{user}`{code_line}",
+      "🧾 *{short_id}*\n\nProduct: {icon} {name}\nQty: {qty}\nTotal: {total} ETB\nMethod: {method}\nStatus: {status}\nManual delivery: {manual}\nUser: `{user}`{creds_line}{code_line}",
       {
         short_id: o.short_id, icon: o.products?.icon, name: o.products?.name,
         qty: o.quantity, total: formatPrice(o.total_cents),
         method: o.payment_method ?? (o.paid_from_wallet ? "wallet" : "—"),
         status: o.status, manual: o.manual_delivery_status,
-        user: o.user_telegram_id, code_line: codeLine,
+        user: o.user_telegram_id, code_line: codeLine, creds_line: credsLine,
       }, { reply_markup: kb });
   });
 
@@ -434,6 +506,10 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
   "product_detail",
   "broadcast_stock_added",
   "bot_policies",
+  "order_credentials_prompt_email",
+"order_credentials_prompt_email_password",
+"order_credentials_invalid_email",
+"order_credentials_invalid_email_password",
 ];
 
   const { data, error } = await supabaseAdmin
