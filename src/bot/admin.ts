@@ -180,10 +180,12 @@ export function registerAdmin(bot: Bot<BotCtx>) {
   .text(await getMessageTemplate("admin_btn_toggle_delivery", " Toggle delivery"), `adm:p:delivery:${p.id}`).row()
   .text(
     p.credential_request === "email" ?
-    await getMessageTemplate("admin_btn_credentials_email", " Login: Email") :
-    p.credential_request === "email_password" ?
-    await getMessageTemplate("admin_btn_credentials_email_password", " Login: Email + Password") :
-    await getMessageTemplate("admin_btn_credentials_off", " Login: OFF"),
+  await getMessageTemplate("admin_btn_credentials_email", " Login: Email") :
+  p.credential_request === "email_password" ?
+  await getMessageTemplate("admin_btn_credentials_email_password", " Login: Email + Password") :
+  p.credential_request === "telegram_username" ?
+  await getMessageTemplate("admin_btn_credentials_telegram", " Login: Telegram Username") :
+  await getMessageTemplate("admin_btn_credentials_off", " Login: OFF"),
     `adm:p:creds:${p.id}`
   ).row()
   .text(p.is_enabled ? await getMessageTemplate("admin_btn_disable", " Disable") : await getMessageTemplate("admin_btn_enable", "✅ Enable"), `adm:p:toggle:${p.id}`)
@@ -199,11 +201,13 @@ export function registerAdmin(bot: Bot<BotCtx>) {
         warranty: p.warranty_text || "—",
         mode: p.delivery_mode,
         creds:
-  p.credential_request === "email"
-    ? "Email only"
-    : p.credential_request === "email_password"
-      ? "Email + Password"
-      : "OFF",
+  p.credential_request === "email" ?
+  "Email only" :
+  p.credential_request === "email_password" ?
+  "Email + Password" :
+  p.credential_request === "telegram_username" ?
+  "Telegram Username" :
+  "OFF",
         avail: avail ?? 0, used: used ?? 0,
         status: p.is_enabled ? "✅ Enabled" : "🚫 Disabled",
       }, { reply_markup: kb });
@@ -238,11 +242,13 @@ bot.callbackQuery(/^adm:p:creds:(.+)$/, async (ctx) => {
   const current = String(p.credential_request ?? "none");
 
   const next =
-    current === "none"
-      ? "email"
-      : current === "email"
-        ? "email_password"
-        : "none";
+  current === "none" ?
+  "email" :
+  current === "email" ?
+  "email_password" :
+  current === "email_password" ?
+  "telegram_username" :
+  "none";
 
   await supabaseAdmin
     .from("products")
@@ -260,11 +266,13 @@ bot.callbackQuery(/^adm:p:creds:(.+)$/, async (ctx) => {
     "Login request set to *{status}*.",
     {
       status:
-        next === "email"
-          ? "Email only"
-          : next === "email_password"
-            ? "Email + Password"
-            : "OFF",
+  next === "email" ?
+  "Email only" :
+  next === "email_password" ?
+  "Email + Password" :
+  next === "telegram_username" ?
+  "Telegram Username" :
+  "OFF",
     },
     {
       reply_markup: new InlineKeyboard().text(
@@ -369,11 +377,16 @@ bot.callbackQuery(/^adm:p:creds:(.+)$/, async (ctx) => {
       .from("orders").select("*, products(name, icon)").eq("id", id).maybeSingle() as any;
     if (!o) return;
     const codeLine = o.delivered_code ? `\nDelivered code:\n\`${o.delivered_code}\`` : "";
-    const credsLine = o.customer_email
-  ? `\n\nLogin details:\nEmail: ${o.customer_email}${
-      o.customer_password ? `\nPassword: ${o.customer_password}` : ""
-    }`
-  : "";
+    const credsLine =
+  o.customer_email || o.customer_telegram_username ?
+  `\n\nCustomer request details:${
+        o.customer_email ? `\nEmail: ${o.customer_email}` : ""
+      }${
+        o.customer_password ? `\nPassword: ${o.customer_password}` : ""
+      }${
+        o.customer_telegram_username ? `\nTelegram: ${o.customer_telegram_username}` : ""
+      }` :
+  "";
     
     const kb = new InlineKeyboard();
     if (o.status === "paid_waiting_delivery" || (o.status === "paid" && o.manual_delivery_status !== "delivered")) {
@@ -510,6 +523,9 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
 "order_credentials_prompt_email_password",
 "order_credentials_invalid_email",
 "order_credentials_invalid_email_password",
+"order_credentials_prompt_telegram",
+"order_credentials_invalid_telegram",
+"admin_btn_credentials_telegram",
 ];
 
   const { data, error } = await supabaseAdmin

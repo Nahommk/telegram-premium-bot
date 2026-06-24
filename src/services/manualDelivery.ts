@@ -12,7 +12,7 @@ export function manualDeliveryKeyboard(orderId: string): InlineKeyboard {
 export async function notifyAdminsManualDelivery(bot: Bot<BotCtx>, orderId: string) {
   const { data: o } = await supabaseAdmin
     .from("orders")
-    .select("id, short_id, user_telegram_id, quantity, total_cents, payment_method, customer_email, customer_password, products(name, icon)")
+    .select("id, short_id, user_telegram_id, quantity, total_cents, payment_method, customer_email, customer_password, customer_telegram_username, products(name, icon)")
     .eq("id", orderId).maybeSingle() as any;
   if (!o) return;
   const { data: u } = await supabaseAdmin
@@ -24,7 +24,16 @@ export async function notifyAdminsManualDelivery(bot: Bot<BotCtx>, orderId: stri
   const credentialsLine = o.customer_email ?
   `\n\nLogin details:\nEmail: \`${o.customer_email}\`${o.customer_password ? `\nPassword: \`${o.customer_password}\`` : ""}` :
   "";
-
+const requestLine =
+  o.customer_email || o.customer_telegram_username
+    ? `\n\nCustomer request details:${
+        o.customer_email ? `\nEmail: \`${o.customer_email}\`` : ""
+      }${
+        o.customer_password ? `\nPassword: \`${o.customer_password}\`` : ""
+      }${
+        o.customer_telegram_username ? `\nTelegram: \`${o.customer_telegram_username}\`` : ""
+      }`
+    : "";
 const text = ` *Manual delivery required*\n\n` +
   `Order: \`${o.short_id}\`\n` +
   `Product: ${o.products?.icon ?? ""} ${o.products?.name}\n` +

@@ -85,14 +85,12 @@ function deliveryProductIcon(icon: unknown): string {
 function parseCustomerCredentials(
   text: string,
   mode: string
-): { email: string; password?: string } | null {
+): { email?: string; password?: string; telegram_username?: string } | null {
   const clean = text.trim();
 
   if (mode === "email") {
     const email = clean;
-
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-
     return { email };
   }
 
@@ -109,6 +107,14 @@ function parseCustomerCredentials(
     if (password.length < 3) return null;
 
     return { email, password };
+  }
+
+  if (mode === "telegram_username") {
+    const username = clean.startsWith("@") ? clean : `@${clean}`;
+
+    if (!/^@[A-Za-z][A-Za-z0-9_]{4,31}$/.test(username)) return null;
+
+    return { telegram_username: username };
   }
 
   return null;
@@ -779,21 +785,27 @@ if (state?.awaiting === "order_credentials") {
   const parsed = parseCustomerCredentials(text, mode);
 
   if (!parsed) {
-if (mode === "email") {
-  await tReply(
-    ctx,
-    "order_credentials_invalid_email",
-    "❌ Invalid email.\n\nSend only your email address:"
-  );
-} else {
-  await tReply(
-    ctx,
-    "order_credentials_invalid_email_password",
-    "❌ Invalid format.\n\nSend it exactly like this:\n\nemail@example.com\nyour-password"
-  );
-}
-    return;
+  if (mode === "email") {
+    await tReply(
+      ctx,
+      "order_credentials_invalid_email",
+      "❌ Invalid email.\n\nSend only your email address:"
+    );
+  } else if (mode === "email_password") {
+    await tReply(
+      ctx,
+      "order_credentials_invalid_email_password",
+      "❌ Invalid format.\n\nSend it exactly like this:\n\nemail@example.com\nyour-password"
+    );
+  } else if (mode === "telegram_username") {
+    await tReply(
+      ctx,
+      "order_credentials_invalid_telegram",
+      "❌ Invalid Telegram username.\n\nSend it like this:\n\n@username"
+    );
   }
+  return;
+}
 
   try {
     await ctx.deleteMessage();
@@ -1244,7 +1256,7 @@ async function askDepositMethod(ctx: BotCtx, amount: number) {
   }
 }
 
-async function createOrderAndAskMethod(   ctx: BotCtx,   productId: string,   qty: number,   credentials?: { email: string; password?: string } ) {
+async function createOrderAndAskMethod(   ctx: BotCtx,   productId: string,   qty: number,   credentials?: { email?: string; password?: string; telegram_username?: string } ) {
   const { data: p } = await supabaseAdmin
     .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request")
     .eq("id", productId).maybeSingle();
@@ -1289,7 +1301,7 @@ if (credentialMode !== "none" && !credentials) {
       reply_markup: await backToMenuKeyboard(),
     }
   );
-} else {
+} else if (credentialMode === "email_password") {
   await tReply(
     ctx,
     "order_credentials_prompt_email_password",
@@ -1299,8 +1311,17 @@ if (credentialMode !== "none" && !credentials) {
       reply_markup: await backToMenuKeyboard(),
     }
   );
+} else if (credentialMode === "telegram_username") {
+  await tReply(
+    ctx,
+    "order_credentials_prompt_telegram",
+    "👤 This product requires your Telegram username.\n\nSend your username like this:\n\n@username",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
 }
-
   return;
 }
   const total = p.price_cents * qty;
@@ -1316,6 +1337,7 @@ const expiresAt = new Date(Date.now() + orderExpireMinutes * 60_000).toISOString
   
   customer_email: credentials?.email ?? null,
   customer_password: credentials?.password ?? null,
+  customer_telegram_username: credentials?.telegram_username ?? null,
 }).select("id, short_id").single();
   if (error || !order) {
     await tReply(ctx, "order_create_failed", "Could not create order.");
