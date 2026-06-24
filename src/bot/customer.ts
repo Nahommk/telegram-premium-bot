@@ -625,7 +625,19 @@ await tReply(ctx, "delivery", "Delivered.\nCode: {code}", {
         orders: orderCount ?? 0, balance: formatPrice(balance),
       }, { reply_markup: await backToMenuKeyboard() });
   });
+bot.callbackQuery("support", async (ctx) => {
+  await ctx.answerCallbackQuery();
 
+  await tEdit(
+    ctx,
+    "support",
+    "☎️ *Support*\n\nNeed help? Contact admin or send your issue here.",
+    {},
+    {
+      reply_markup: await backToMenuKeyboard(),
+    }
+  );
+});
   bot.callbackQuery("policies", async (ctx) => {
   await ctx.answerCallbackQuery();
 
