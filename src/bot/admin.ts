@@ -156,7 +156,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
   visibleProducts.forEach((p) => {
     kb.text(
       `${p.is_enabled ? "✅" : ""} ${p.icon ?? ""} ${p.name} — ${formatPrice(p.price_cents)} ${p.delivery_mode === "manual" ? "📝" : "⚡"}`,
-      `adm:p:view:${p.id}`
+      `adm:p:view:${p.id}:${page}`
     ).row();
   });
   
@@ -206,9 +206,10 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     await tA(ctx, "new_product_name_prompt", "Send the new product *name*:");
   });
 
-  bot.callbackQuery(/^adm:p:view:(.+)$/, async (ctx) => {
+  bot.callbackQuery(/^adm:p:view:([^:]+)(?::(\d+))?$/, async (ctx) => {
     if (!requireAdmin(ctx)) return;
     const id = ctx.match![1];
+    const page = Number(ctx.match![2] ?? 0);
     await ctx.answerCallbackQuery();
     const { data: p } = await supabaseAdmin.from("products").select("*").eq("id", id).maybeSingle();
     if (!p) return;
@@ -240,7 +241,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
   .text(p.is_enabled ? await getMessageTemplate("admin_btn_disable", " Disable") : await getMessageTemplate("admin_btn_enable", "✅ Enable"), `adm:p:toggle:${p.id}`)
       .text(await getMessageTemplate("admin_btn_add_codes", "➕ Add codes"), `adm:s:add:${p.id}`).row()
       .text(await getMessageTemplate("admin_btn_delete", "🗑 Delete"), `adm:p:del:${p.id}`)
-      .text(await getMessageTemplate("admin_btn_products_back", "⬅️ Products"), "adm:p:list:0");
+      .text(await getMessageTemplate("admin_btn_products_back", "⬅️ Products"), `adm:p:list:${page}`);
     await tAEdit(ctx, "product_view",
       "{icon} *{name}*\n\n{description}\n\n💵 {price} ETB\n🛡 {warranty}\n🚚 Delivery: *{mode}*Login request: *{creds}*\n📦 Stock: {avail} available / {used} sold\nStatus: {status}",
       {
@@ -270,35 +271,27 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
 
   await ctx.answerCallbackQuery();
 
-  const { data: current } = await supabaseAdmin
+  const pageSize = 6;
+
+  const { data: allProducts } = await supabaseAdmin
     .from("products")
-    .select("id, sort_order")
-    .eq("id", id)
-    .maybeSingle() as any;
+    .select("id, sort_order, created_at")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true }) as any;
 
-  if (!current) return;
+  const products = allProducts ?? [];
+  const currentIndex = products.findIndex((p: any) => p.id === id);
 
-  const currentOrder = Number(current.sort_order ?? 0);
-
-  let neighborQuery = supabaseAdmin
-    .from("products")
-    .select("id, sort_order")
-    .neq("id", id)
-    .limit(1);
-
-  if (direction === "up") {
-    neighborQuery = neighborQuery
-      .lt("sort_order", currentOrder)
-      .order("sort_order", { ascending: false });
-  } else {
-    neighborQuery = neighborQuery
-      .gt("sort_order", currentOrder)
-      .order("sort_order", { ascending: true });
+  if (currentIndex === -1) {
+    await tA(ctx, "product_not_found", "Product not found.");
+    return;
   }
 
-  const { data: neighbor } = await neighborQuery.maybeSingle() as any;
+  const neighborIndex = direction === "up"
+    ? currentIndex - 1
+    : currentIndex + 1;
 
-  if (!neighbor) {
+  if (neighborIndex < 0 || neighborIndex >= products.length) {
     await tA(
       ctx,
       "product_move_edge",
@@ -309,13 +302,17 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
       {
         reply_markup: new InlineKeyboard().text(
           await getMessageTemplate("admin_btn_reload", "Reload"),
-          `adm:p:view:${id}`
+          `adm:p:view:${id}:${Math.floor(currentIndex / pageSize)}`
         ),
       }
     );
     return;
   }
 
+  const current = products[currentIndex];
+  const neighbor = products[neighborIndex];
+
+  const currentOrder = Number(current.sort_order ?? 0);
   const neighborOrder = Number(neighbor.sort_order ?? 0);
 
   await supabaseAdmin
@@ -334,6 +331,9 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
     swapped_with: neighbor.id,
   });
 
+  const newIndex = neighborIndex;
+  const newPage = Math.floor(newIndex / pageSize);
+
   await tAEdit(
     ctx,
     "product_moved",
@@ -342,10 +342,16 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
       direction: direction === "up" ? "up" : "down",
     },
     {
-      reply_markup: new InlineKeyboard().text(
-        await getMessageTemplate("admin_btn_reload", "Reload"),
-        `adm:p:view:${id}`
-      ),
+      reply_markup: new InlineKeyboard()
+        .text(
+          await getMessageTemplate("admin_btn_reload", "Reload product"),
+          `adm:p:view:${id}:${newPage}`
+        )
+        .row()
+        .text(
+          await getMessageTemplate("admin_btn_products_back", "⬅️ Products"),
+          `adm:p:list:${newPage}`
+        ),
     }
   );
 });
