@@ -138,8 +138,10 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     const page = parseInt(ctx.match![1], 10);
     await ctx.answerCallbackQuery();
     const { data } = await supabaseAdmin
-      .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request")
-      .order("created_at", { ascending: false }).range(page * 10, page * 10 + 9);
+      .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode, sort_order")
+  .order("sort_order", { ascending: true })
+  .order("created_at", { ascending: true })
+  .range(page * 10, page * 10 + 9);
     const kb = new InlineKeyboard();
     (data ?? []).forEach((p) => {
       kb.text(
@@ -178,6 +180,8 @@ export function registerAdmin(bot: Bot<BotCtx>) {
       .text(await getMessageTemplate("admin_btn_edit_warranty", "🛡 Warranty"), `adm:p:edit:warranty:${p.id}`).row()
       .text(await getMessageTemplate("admin_btn_edit_icon", " Icon"), `adm:p:edit:icon:${p.id}`)
   .text(await getMessageTemplate("admin_btn_toggle_delivery", " Toggle delivery"), `adm:p:delivery:${p.id}`).row()
+  .text(await getMessageTemplate("admin_btn_product_up", "⬆️ Up"), `adm:p:move:${p.id}:up`)
+.text(await getMessageTemplate("admin_btn_product_down", "⬇️ Down"), `adm:p:move:${p.id}:down`).row()
   .text(
     p.credential_request === "email" ?
   await getMessageTemplate("admin_btn_credentials_email", " Login: Email") :
@@ -212,6 +216,94 @@ export function registerAdmin(bot: Bot<BotCtx>) {
         status: p.is_enabled ? "✅ Enabled" : "🚫 Disabled",
       }, { reply_markup: kb });
   });
+
+bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
+  if (!requireAdmin(ctx)) return;
+
+  const id = ctx.match![1];
+  const direction = ctx.match![2] as "up" | "down";
+
+  await ctx.answerCallbackQuery();
+
+  const { data: current } = await supabaseAdmin
+    .from("products")
+    .select("id, sort_order")
+    .eq("id", id)
+    .maybeSingle() as any;
+
+  if (!current) return;
+
+  const currentOrder = Number(current.sort_order ?? 0);
+
+  let neighborQuery = supabaseAdmin
+    .from("products")
+    .select("id, sort_order")
+    .neq("id", id)
+    .limit(1);
+
+  if (direction === "up") {
+    neighborQuery = neighborQuery
+      .lt("sort_order", currentOrder)
+      .order("sort_order", { ascending: false });
+  } else {
+    neighborQuery = neighborQuery
+      .gt("sort_order", currentOrder)
+      .order("sort_order", { ascending: true });
+  }
+
+  const { data: neighbor } = await neighborQuery.maybeSingle() as any;
+
+  if (!neighbor) {
+    await tA(
+      ctx,
+      "product_move_edge",
+      direction === "up"
+        ? "This product is already at the top."
+        : "This product is already at the bottom.",
+      {},
+      {
+        reply_markup: new InlineKeyboard().text(
+          await getMessageTemplate("admin_btn_reload", "Reload"),
+          `adm:p:view:${id}`
+        ),
+      }
+    );
+    return;
+  }
+
+  const neighborOrder = Number(neighbor.sort_order ?? 0);
+
+  await supabaseAdmin
+    .from("products")
+    .update({ sort_order: neighborOrder })
+    .eq("id", current.id);
+
+  await supabaseAdmin
+    .from("products")
+    .update({ sort_order: currentOrder })
+    .eq("id", neighbor.id);
+
+  await audit(ctx.from!.id, "product.move", {
+    id,
+    direction,
+    swapped_with: neighbor.id,
+  });
+
+  await tAEdit(
+    ctx,
+    "product_moved",
+    "✅ Product moved {direction}.",
+    {
+      direction: direction === "up" ? "up" : "down",
+    },
+    {
+      reply_markup: new InlineKeyboard().text(
+        await getMessageTemplate("admin_btn_reload", "Reload"),
+        `adm:p:view:${id}`
+      ),
+    }
+  );
+});
 
   bot.callbackQuery(/^adm:p:delivery:(.+)$/, async (ctx) => {
     if (!requireAdmin(ctx)) return;
