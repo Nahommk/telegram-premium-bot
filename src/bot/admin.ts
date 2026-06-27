@@ -134,25 +134,70 @@ export function registerAdmin(bot: Bot<BotCtx>) {
 
   // ============ Products ============
   bot.callbackQuery(/^adm:p:list:(\d+)$/, async (ctx) => {
-    if (!requireAdmin(ctx)) return;
-    const page = parseInt(ctx.match![1], 10);
-    await ctx.answerCallbackQuery();
-    const { data } = await supabaseAdmin
-      .from("products").select("id, name, icon, price_cents, is_enabled, delivery_mode, sort_order")
-  .order("sort_order", { ascending: true })
-  .order("created_at", { ascending: true })
-  .range(page * 10, page * 10 + 9);
-    const kb = new InlineKeyboard();
-    (data ?? []).forEach((p) => {
-      kb.text(
-        `${p.is_enabled ? "✅" : "🚫"} ${p.icon} ${p.name} — ${formatPrice(p.price_cents)} ${p.delivery_mode === "manual" ? "👤" : "🤖"}`,
-        `adm:p:view:${p.id}`,
-      ).row();
-    });
-    kb.text(await getMessageTemplate("admin_btn_new_product", "➕ New product"), "adm:p:new").row()
-      .text(await getMessageTemplate("admin_btn_admin", "⬅️ Admin"), "admin:menu");
-    await tAEdit(ctx, "products_header", "📦 *Products*", {}, { reply_markup: kb });
+  if (!requireAdmin(ctx)) return;
+  
+  const page = parseInt(ctx.match![1], 10);
+  const pageSize = 10;
+  
+  await ctx.answerCallbackQuery();
+  
+  const { data } = await supabaseAdmin
+    .from("products")
+    .select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request")
+    .order("created_at", { ascending: false })
+    .range(page * pageSize, page * pageSize + pageSize);
+  
+  const products = data ?? [];
+  const visibleProducts = products.slice(0, pageSize);
+  const hasNext = products.length > pageSize;
+  
+  const kb = new InlineKeyboard();
+  
+  visibleProducts.forEach((p) => {
+    kb.text(
+      `${p.is_enabled ? "✅" : ""} ${p.icon ?? ""} ${p.name} — ${formatPrice(p.price_cents)} ${p.delivery_mode === "manual" ? "📝" : "⚡"}`,
+      `adm:p:view:${p.id}`
+    ).row();
   });
+  
+  const nav = [];
+  
+  if (page > 0) {
+    nav.push({
+      text: await getMessageTemplate("admin_btn_prev", "◀️ Previous"),
+      callback_data: `adm:p:list:${page - 1}`,
+    });
+  }
+  
+  if (hasNext) {
+    nav.push({
+      text: await getMessageTemplate("admin_btn_next", "Next ▶️"),
+      callback_data: `adm:p:list:${page + 1}`,
+    });
+  }
+  
+  if (nav.length) {
+    for (const btn of nav) {
+      kb.text(btn.text, btn.callback_data);
+    }
+    kb.row();
+  }
+  
+  kb.text(await getMessageTemplate("admin_btn_new_product", "➕ New product"), "adm:p:new").row()
+    .text(await getMessageTemplate("admin_btn_admin", "⬅️ Admin"), "admin:menu");
+  
+  await tAEdit(
+    ctx,
+    "products_header",
+    "📦 *Products* — Page {page}",
+    {
+      page: page + 1,
+    },
+    {
+      reply_markup: kb,
+    }
+  );
+});
 
   bot.callbackQuery("adm:p:new", async (ctx) => {
     if (!requireAdmin(ctx)) return;
