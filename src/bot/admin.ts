@@ -676,6 +676,7 @@ bot.callbackQuery("adm:t:list", async (ctx) => {
 "order_credentials_prompt_telegram",
 "order_credentials_invalid_telegram",
 "admin_btn_credentials_telegram",
+"payment_verified_success",
 ];
 
   const { data, error } = await supabaseAdmin

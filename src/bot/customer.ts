@@ -999,9 +999,9 @@ async function handlePaymentResult(
         code: deliveredCode,
         content: deliveredCode,
       },
-      {
-        reply_markup: await dynamicMainMenu(ctx.isAdmin),
-      }
+     {
+  reply_markup: await backToMenuKeyboard(),
+}
     );
 
     return;
