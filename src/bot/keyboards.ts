@@ -121,12 +121,21 @@ if (page < maxPage) {
 
   if (nav.length) rows.push(nav);
 
-  rows.push([
-    await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary"),
-  ]);
+rows.push([
+  await premiumBtn(
+    "btn_refresh",
+    "Refresh",
+    "🔄",
+    `shop:list:${page}`,
+    "primary"
+  ),
+]);
 
-  return { inline_keyboard: rows };
-}
+rows.push([
+  await premiumBtn("btn_back", "Main menu", "⬅️", "menu", "primary"),
+]);
+
+return { inline_keyboard: rows };
 
 export async function quantityKeyboard(productId: string, presets: number[]): Promise<PremiumKeyboard> {
   const rows: PremiumButton[][] = [];
