@@ -173,7 +173,7 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     
     if (hasNext) {
       kb.text(
-        await getMessageTemplate("admin_btn_next", "Next ▶️"),
+        await getMessageTemplate("admin_btn_next", "Next▶️"),
         `adm:p:list:${page + 1}`
       );
     }
