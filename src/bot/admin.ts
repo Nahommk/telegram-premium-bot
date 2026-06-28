@@ -2,7 +2,7 @@ import type { Bot } from "grammy";
 import { InlineKeyboard } from "grammy";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { BotCtx } from "./bot";
-import { adminMenuKeyboard, backToMenuKeyboard } from "./keyboards";
+import { adminMenuKeyboard, backToMenuKeyboard, premiumBtn } from "./keyboards";
 import { formatPrice } from "./util";
 import { markManuallyDelivered, rejectOrder, refundOrder } from "@/services/manualDelivery";
 import { adminAdjust } from "@/services/wallet";
@@ -237,8 +237,19 @@ export function registerAdmin(bot: Bot<BotCtx>) {
   ).row()
   .text(p.is_enabled ? await getMessageTemplate("admin_btn_disable", " Disable") : await getMessageTemplate("admin_btn_enable", "✅ Enable"), `adm:p:toggle:${p.id}`)
       .text(await getMessageTemplate("admin_btn_add_codes", "➕ Add codes"), `adm:s:add:${p.id}`).row()
-      .text(await getMessageTemplate("admin_btn_delete", "🗑 Delete"), `adm:p:del:${p.id}`)
-      .text(await getMessageTemplate("admin_btn_products_back", "⬅️ Products"), `adm:p:list:${page}`);
+      .row()
+  .add(
+    await premiumBtn(
+      "admin_btn_refresh",
+      "Refresh",
+      "🔄",
+      `adm:p:view:${p.id}:${page}`,
+      "primary"
+    ) as any
+  )
+  .row()
+  .text(await getMessageTemplate("admin_btn_delete", " Delete"), `adm:p:del:${p.id}`)
+  .text(await getMessageTemplate("admin_btn_products_back", "⬅️ Products"), `adm:p:list:${page}`);
     await tAEdit(ctx, "product_view",
       "{icon} *{name}*\n\n{description}\n\n💵 {price} ETB\n🛡 {warranty}\n🚚 Delivery: *{mode}*Login request: *{creds}*\n📦 Stock: {avail} available / {used} sold\nStatus: {status}",
       {
