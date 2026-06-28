@@ -270,11 +270,16 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
 
   const pageSize = 6;
 
-  const { data: allProducts } = await supabaseAdmin
+  const { data: allProducts, error } = await supabaseAdmin
     .from("products")
     .select("id, sort_order, created_at")
-    .order("sort_order", { ascending: true })
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true }) as any;
+
+  if (error) {
+    await tA(ctx, "generic_failed", "Failed: {error}", { error: error.message });
+    return;
+  }
 
   const products = allProducts ?? [];
   const currentIndex = products.findIndex((p: any) => p.id === id);
@@ -284,11 +289,11 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
     return;
   }
 
-  const neighborIndex = direction === "up"
+  const newIndex = direction === "up"
     ? currentIndex - 1
     : currentIndex + 1;
 
-  if (neighborIndex < 0 || neighborIndex >= products.length) {
+  if (newIndex < 0 || newIndex >= products.length) {
     await tA(
       ctx,
       "product_move_edge",
@@ -306,29 +311,23 @@ bot.callbackQuery(/^adm:p:move:([^:]+):(up|down)$/, async (ctx) => {
     return;
   }
 
-  const current = products[currentIndex];
-  const neighbor = products[neighborIndex];
+  const [movingProduct] = products.splice(currentIndex, 1);
+  products.splice(newIndex, 0, movingProduct);
 
-  const currentOrder = Number(current.sort_order ?? 0);
-  const neighborOrder = Number(neighbor.sort_order ?? 0);
-
-  await supabaseAdmin
-    .from("products")
-    .update({ sort_order: neighborOrder })
-    .eq("id", current.id);
-
-  await supabaseAdmin
-    .from("products")
-    .update({ sort_order: currentOrder })
-    .eq("id", neighbor.id);
+  for (let i = 0; i < products.length; i++) {
+    await supabaseAdmin
+      .from("products")
+      .update({ sort_order: (i + 1) * 100 })
+      .eq("id", products[i].id);
+  }
 
   await audit(ctx.from!.id, "product.move", {
     id,
     direction,
-    swapped_with: neighbor.id,
+    old_index: currentIndex,
+    new_index: newIndex,
   });
 
-  const newIndex = neighborIndex;
   const newPage = Math.floor(newIndex / pageSize);
 
   await tAEdit(
