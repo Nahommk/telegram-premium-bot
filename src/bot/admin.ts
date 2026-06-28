@@ -137,15 +137,18 @@ export function registerAdmin(bot: Bot<BotCtx>) {
   if (!requireAdmin(ctx)) return;
   
   const page = parseInt(ctx.match![1], 10);
-  const pageSize = 10;
+  const pageSize = 6;
+  const from = page * pageSize;
+  const to = from + pageSize;
   
   await ctx.answerCallbackQuery();
   
   const { data } = await supabaseAdmin
     .from("products")
-    .select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request")
-    .order("created_at", { ascending: false })
-    .range(page * pageSize, page * pageSize + pageSize);
+    .select("id, name, icon, price_cents, is_enabled, delivery_mode, credential_request, sort_order")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+    .range(from, to);
   
   const products = data ?? [];
   const visibleProducts = products.slice(0, pageSize);
@@ -160,26 +163,21 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     ).row();
   });
   
-  const nav = [];
-  
-  if (page > 0) {
-    nav.push({
-      text: await getMessageTemplate("admin_btn_prev", "◀️ Previous"),
-      callback_data: `adm:p:list:${page - 1}`,
-    });
-  }
-  
-  if (hasNext) {
-    nav.push({
-      text: await getMessageTemplate("admin_btn_next", "Next ▶️"),
-      callback_data: `adm:p:list:${page + 1}`,
-    });
-  }
-  
-  if (nav.length) {
-    for (const btn of nav) {
-      kb.text(btn.text, btn.callback_data);
+  if (page > 0 || hasNext) {
+    if (page > 0) {
+      kb.text(
+        await getMessageTemplate("admin_btn_prev", "◀️ Previous"),
+        `adm:p:list:${page - 1}`
+      );
     }
+    
+    if (hasNext) {
+      kb.text(
+        await getMessageTemplate("admin_btn_next", "Next ▶️"),
+        `adm:p:list:${page + 1}`
+      );
+    }
+    
     kb.row();
   }
   
@@ -198,7 +196,6 @@ export function registerAdmin(bot: Bot<BotCtx>) {
     }
   );
 });
-
   bot.callbackQuery("adm:p:new", async (ctx) => {
     if (!requireAdmin(ctx)) return;
     await ctx.answerCallbackQuery();
