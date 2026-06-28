@@ -44,6 +44,13 @@ bot.api.setMyCommands([
 
   const publicSiteUrl = (process.env.PUBLIC_SITE_URL || "https://nahom.info").replace(/\/$/, "");
 const publicBotName = process.env.PUBLIC_BOT_NAME || "VX Topup Bot";
+const publicSeoTitle =
+  process.env.PUBLIC_SEO_TITLE ||
+  `Best Subscription Seller Bot in Ethiopia | ${publicBotName}`;
+
+const publicSeoDescription =
+  process.env.PUBLIC_SEO_DESCRIPTION ||
+  `${publicBotName} is a Telegram subscription seller and topup bot in Ethiopia for digital products, premium subscriptions, and online services. Supports Telebirr, CBE, CBE Birr, M-Pesa, reviews, purchase logs, and support.`;
 const publicBotUrl = process.env.PUBLIC_BOT_URL || "https://t.me/YOUR_BOT_USERNAME";
 const publicSupportUrl = process.env.PUBLIC_SUPPORT_URL || publicBotUrl;
 const publicReviewsUrl = process.env.PUBLIC_REVIEWS_URL || "";
@@ -58,9 +65,8 @@ function htmlEscape(value: unknown) {
 }
 
 function seoLandingPage() {
-  const title = `Best Subscription Seller Bot in Ethiopia | ${publicBotName}`;
-  const description =
-    `${publicBotName} is a Telegram subscription seller and topup bot in Ethiopia for digital products, premium subscriptions, and online services. Supports Telebirr, CBE, CBE Birr, M-Pesa, reviews, purchase logs, and support.`;
+  const title = publicSeoTitle;
+const description = publicSeoDescription;
   
   const schema = {
     "@context": "https://schema.org",
