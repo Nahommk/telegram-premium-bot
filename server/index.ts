@@ -42,10 +42,247 @@ bot.api.setMyCommands([
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
-  app.get("/", (_req, res) => {
-  res.redirect("/stats");
+  const publicSiteUrl = (process.env.PUBLIC_SITE_URL || "https://nahom.info").replace(/\/$/, "");
+const publicBotName = process.env.PUBLIC_BOT_NAME || "VX Topup Bot";
+const publicBotUrl = process.env.PUBLIC_BOT_URL || "https://t.me/YOUR_BOT_USERNAME";
+const publicSupportUrl = process.env.PUBLIC_SUPPORT_URL || publicBotUrl;
+const publicReviewsUrl = process.env.PUBLIC_REVIEWS_URL || "";
+const publicLogsUrl = process.env.PUBLIC_LOGS_URL || "";
+
+function htmlEscape(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function seoLandingPage() {
+  const title = `Best Subscription Seller Bot in Ethiopia | ${publicBotName}`;
+  const description =
+    `${publicBotName} is a Telegram subscription seller and topup bot in Ethiopia for digital products, premium subscriptions, and online services. Supports Telebirr, CBE, CBE Birr, M-Pesa, reviews, purchase logs, and support.`;
+  
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: publicBotName,
+    url: publicSiteUrl,
+    description,
+    areaServed: "Ethiopia",
+    sameAs: [publicBotUrl, publicReviewsUrl, publicLogsUrl].filter(Boolean),
+    contactPoint: {
+      "@type": "ContactPoint",
+      url: publicSupportUrl,
+      contactType: "customer support",
+      areaServed: "ET",
+      availableLanguage: ["English", "Amharic"],
+    },
+  };
+  
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>${htmlEscape(title)}</title>
+  <meta name="description" content="${htmlEscape(description)}" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="${htmlEscape(publicSiteUrl)}/subscription-bot-ethiopia" />
+
+  <meta property="og:title" content="${htmlEscape(title)}" />
+  <meta property="og:description" content="${htmlEscape(description)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${htmlEscape(publicSiteUrl)}/subscription-bot-ethiopia" />
+
+  <script type="application/ld+json">${JSON.stringify(schema).replace(/</g, "\\u003c")}</script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #080808;
+      color: #ffffff;
+      line-height: 1.6;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 42px 18px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #111, #1d1d1d);
+      border: 1px solid #333;
+      border-radius: 22px;
+      padding: 34px;
+    }
+    h1 {
+      font-size: 38px;
+      line-height: 1.15;
+      margin: 0 0 16px;
+    }
+    h2 {
+      margin-top: 34px;
+      font-size: 24px;
+    }
+    p, li {
+      color: #dddddd;
+      font-size: 17px;
+    }
+    .btns {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    a.btn {
+      background: #ffffff;
+      color: #000000;
+      text-decoration: none;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+    a.secondary {
+      background: #222;
+      color: #fff;
+      border: 1px solid #444;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .card {
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 18px;
+      background: #101010;
+    }
+    footer {
+      margin-top: 42px;
+      color: #aaa;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>${htmlEscape(publicBotName)}: Telegram Subscription Seller Bot in Ethiopia</h1>
+      <p>
+        ${htmlEscape(publicBotName)} is a Telegram topup bot and digital product seller bot in Ethiopia.
+        Users can buy premium subscriptions, digital products, and online service plans using local payment methods.
+      </p>
+
+      <div class="btns">
+        <a class="btn" href="${htmlEscape(publicBotUrl)}">Open Telegram Bot</a>
+        ${publicReviewsUrl ? `<a class="btn secondary" href="${htmlEscape(publicReviewsUrl)}">See Reviews</a>` : ""}
+        ${publicLogsUrl ? `<a class="btn secondary" href="${htmlEscape(publicLogsUrl)}">Purchase Logs</a>` : ""}
+      </div>
+    </section>
+
+    <h2>Subscription and Topup Services in Ethiopia</h2>
+    <p>
+      ${htmlEscape(publicBotName)} helps Ethiopian users buy digital subscriptions and online services through Telegram.
+      The bot is built for fast ordering, clear product details, purchase tracking, and support.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Popular Products</h3>
+        <ul>
+          <li>ChatGPT Plus and AI subscriptions</li>
+          <li>Canva Pro and design tools</li>
+          <li>Spotify Premium and entertainment plans</li>
+          <li>VPN and online service plans</li>
+          <li>Digital product access and invite links</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Payment Methods</h3>
+        <ul>
+          <li>Telebirr</li>
+          <li>CBE</li>
+          <li>CBE Birr</li>
+          <li>M-Pesa</li>
+          <li>Dashen Bank</li>
+          <li>Bank of Abyssinia</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Why Users Choose Us</h3>
+        <ul>
+          <li>Fast Telegram ordering</li>
+          <li>Public purchase logs</li>
+          <li>Real review group</li>
+          <li>Support after purchase</li>
+          <li>Clear warranty and bot policies</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Best Subscription Seller Bot in Ethiopia</h2>
+    <p>
+      If you are looking for a Telegram subscription seller bot in Ethiopia,
+      ${htmlEscape(publicBotName)} provides a simple way to order digital products, pay with Ethiopian payment methods,
+      and receive delivery or support through Telegram.
+    </p>
+
+    <h2>How It Works</h2>
+    <ol>
+      <li>Open the Telegram bot.</li>
+      <li>Choose a product or subscription.</li>
+      <li>Select quantity and payment method.</li>
+      <li>Pay using your preferred local method.</li>
+      <li>Receive delivery or admin support inside Telegram.</li>
+    </ol>
+
+    <footer>
+      <p>
+        Keywords: best subscription seller bot in Ethiopia, Telegram topup bot Ethiopia,
+        digital product seller bot Ethiopia, ChatGPT Plus Ethiopia, premium subscription Ethiopia.
+      </p>
+    </footer>
+  </main>
+</body>
+</html>`;
+}
+
+app.get(["/", "/subscription-bot-ethiopia", "/topup-bot-ethiopia"], (_req, res) => {
+  res.type("html").send(seoLandingPage());
 });
-  app.get("/health", (_req, res) => res.json({ ok: true }));
+
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send(`User-agent: *
+Allow: /
+
+Sitemap: ${publicSiteUrl}/sitemap.xml
+`);
+});
+
+app.get("/sitemap.xml", (_req, res) => {
+  res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${publicSiteUrl}/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${publicSiteUrl}/subscription-bot-ethiopia</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${publicSiteUrl}/topup-bot-ethiopia</loc>
+    <priority>0.9</priority>
+  </url>
+</urlset>`);
+});
+
+app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get(["/stats", "/admin/stats"], async (req, res) => {
   const expected = String(process.env.STATS_DASHBOARD_SECRET ?? "").trim();
 const key = String(req.query.key ?? "").trim();
