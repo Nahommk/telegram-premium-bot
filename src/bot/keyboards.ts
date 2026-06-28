@@ -136,7 +136,7 @@ rows.push([
 ]);
 
 return { inline_keyboard: rows };
-
+}
 export async function quantityKeyboard(productId: string, presets: number[]): Promise<PremiumKeyboard> {
   const rows: PremiumButton[][] = [];
   let row: PremiumButton[] = [];
