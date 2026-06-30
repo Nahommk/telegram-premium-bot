@@ -493,25 +493,42 @@ bot.callbackQuery(/^adm:p:creds:(.+)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     const { data } = await supabaseAdmin
       .from("orders")
-      .select("id, short_id, total_cents, user_telegram_id, status, products(name, icon)")
+      .select("id, short_id, total_cents, user_telegram_id, status, customer_email, customer_password, customer_telegram_username, products(name, icon)")
       .eq("status", status as any)
       .order("created_at", { ascending: false })
       .range(page * 10, page * 10 + 9) as any;
     const header = await renderMessage("admin_orders_list_header", "🧾 *Orders — {status}*\n\n", { status });
     const empty = await getMessageTemplate("admin_orders_list_empty", "_None_");
-    const lineTpl = await getMessageTemplate("admin_orders_list_line",
-      "*{short_id}* — {name} — {total} ETB — user `{user}`\n");
+    const lineTpl = await getMessageTemplate(
+  "admin_orders_list_line",
+  "*{short_id}* — {name} — {total} ETB — user `{user}`{request}\n"
+);
     let text = header;
     const kb = new InlineKeyboard();
     if (!data || data.length === 0) text += empty;
     for (const o of data ?? []) {
-      text += lineTpl
-        .replace("{short_id}", o.short_id)
-        .replace("{name}", o.products?.name ?? "?")
-        .replace("{total}", formatPrice(o.total_cents))
-        .replace("{user}", String(o.user_telegram_id));
-      kb.text(o.short_id, `adm:o:view:${o.id}`).row();
-    }
+  const request =
+    o.customer_email || o.customer_telegram_username ?
+    `\nRequest: ${
+          [
+            o.customer_email ? `Email: ${o.customer_email}` : "",
+            o.customer_password ? `Password: ${o.customer_password}` : "",
+            o.customer_telegram_username ? `Telegram: ${o.customer_telegram_username}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | ")
+        }` :
+    "";
+  
+  text += lineTpl
+    .replace("{short_id}", o.short_id)
+    .replace("{name}", o.products?.name ?? "?")
+    .replace("{total}", formatPrice(o.total_cents))
+    .replace("{user}", String(o.user_telegram_id))
+    .replace("{request}", request);
+  
+  kb.text(o.short_id, `adm:o:view:${o.id}`).row();
+}
     for (const s of ["pending", "paid_waiting_delivery", "delivered", "failed", "rejected", "refunded"]) {
       kb.text(s === status ? `• ${s}` : s, `adm:o:list:${s}:0`);
     }
